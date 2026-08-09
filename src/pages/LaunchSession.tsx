@@ -55,6 +55,7 @@ type Participant = {
   completed_at: string | null;
   score: number;
   total_points: number;
+  answers_count?: number;
   answers?: ParticipantAnswer[];
 };
 
@@ -1025,9 +1026,17 @@ function ParticipantRow({
   const isCompleted =
     participant.completed_at !== null;
 
+  const liveAnsweredQuestions =
+    participant.answers_count ??
+    participant.answers?.length ??
+    0;
+
   const answeredQuestions = isCompleted
     ? totalQuestions
-    : participant.answers?.length ?? 0;
+    : Math.min(
+        totalQuestions,
+        liveAnsweredQuestions
+      );
 
   const progress =
     totalQuestions > 0
