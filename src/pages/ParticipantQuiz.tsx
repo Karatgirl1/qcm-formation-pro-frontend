@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -11,7 +12,6 @@ import {
   LinearProgress,
   Radio,
   Typography,
-  Alert,
 } from "@mui/material";
 
 import api from "../api/axios";
@@ -38,7 +38,6 @@ type Question = {
 type PublicSession = {
   id: number;
   code: string;
-
   qcm: {
     id: number;
     title: string;
@@ -62,6 +61,10 @@ export default function ParticipantQuiz() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Empêche un double envoi si le bouton et le timer
+  // se déclenchent quasiment en même temps.
+  const submitLockRef = useRef(false);
 
   const participantId =
     sessionStorage.getItem("participant_id");
@@ -94,42 +97,27 @@ export default function ParticipantQuiz() {
       }
     };
 
-    loadSession();
+    void loadSession();
   }, [code, navigate, participantId]);
 
   const currentQuestion =
     session?.qcm.questions[currentIndex];
 
+  // Réinitialise le compteur à chaque nouvelle question.
   useEffect(() => {
     if (!currentQuestion) {
       return;
     }
 
     setSelectedAnswerIds([]);
-    setTimeLeft(currentQuestion.timer ?? 30);
+    setTimeLeft(
+      Math.max(1, Number(currentQuestion.timer ?? 30))
+    );
+    submitLockRef.current = false;
   }, [currentQuestion?.id]);
 
-  useEffect(() => {
-    if (!currentQuestion || submitting) {
-      return;
-    }
-
-    if (timeLeft <= 0) {
-      void submitAnswer(true);
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setTimeLeft((current) => current - 1);
-    }, 1000);
-
-    return () => {
-      window.clearTimeout(timeout);
-    };
-  }, [timeLeft, currentQuestion?.id, submitting]);
-
   const selectAnswer = (answerId: number) => {
-    if (!currentQuestion) {
+    if (!currentQuestion || submitting) {
       return;
     }
 
@@ -155,7 +143,7 @@ export default function ParticipantQuiz() {
       !session ||
       !currentQuestion ||
       !participantId ||
-      submitting
+      submitLockRef.current
     ) {
       return;
     }
@@ -168,21 +156,19 @@ export default function ParticipantQuiz() {
       return;
     }
 
+    submitLockRef.current = true;
+
     try {
       setSubmitting(true);
 
+      // Si le participant a choisi une réponse,
+      // elle est enregistrée avant de continuer.
       if (selectedAnswerIds.length > 0) {
-        console.log("ENVOI REPONSE", {
-  participant_id: participantId,
-  question_id: currentQuestion.id,
-  selected_answer_ids: selectedAnswerIds,
-});
         await api.post(
           `/public/participants/${participantId}/answers`,
           {
             question_id: currentQuestion.id,
-            selected_answer_ids:
-              selectedAnswerIds,
+            selected_answer_ids: selectedAnswerIds,
           }
         );
       }
@@ -207,6 +193,8 @@ export default function ParticipantQuiz() {
     } catch (error: any) {
       console.error(error);
 
+      submitLockRef.current = false;
+
       alert(
         error.response?.data?.message ??
           "Impossible d’enregistrer la réponse."
@@ -215,6 +203,37 @@ export default function ParticipantQuiz() {
       setSubmitting(false);
     }
   }
+
+  // Vrai compte à rebours : -1 chaque seconde.
+  // À 0, passage automatique à la question suivante.
+  useEffect(() => {
+    if (
+      !currentQuestion ||
+      submitting ||
+      submitLockRef.current
+    ) {
+      return;
+    }
+
+    if (timeLeft <= 0) {
+      void submitAnswer(true);
+      return;
+    }
+
+    const timerId = window.setTimeout(() => {
+      setTimeLeft((current) =>
+        Math.max(0, current - 1)
+      );
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timerId);
+    };
+  }, [
+    timeLeft,
+    currentQuestion?.id,
+    submitting,
+  ]);
 
   if (loading) {
     return (
@@ -249,13 +268,15 @@ export default function ParticipantQuiz() {
   const progress =
     ((currentIndex + 1) / totalQuestions) * 100;
 
-  const initialTime =
-    currentQuestion.timer ?? 30;
+  const initialTime = Math.max(
+    1,
+    Number(currentQuestion.timer ?? 30)
+  );
 
   const timerProgress =
-    initialTime > 0
-      ? (timeLeft / initialTime) * 100
-      : 0;
+    (timeLeft / initialTime) * 100;
+
+  const timerUrgent = timeLeft <= 5;
 
   return (
     <Box
@@ -288,7 +309,6 @@ export default function ParticipantQuiz() {
             height: 9,
             borderRadius: 5,
             mb: 3,
-
             "& .MuiLinearProgress-bar": {
               bgcolor: "#E3062C",
             },
@@ -302,7 +322,9 @@ export default function ParticipantQuiz() {
               "0 10px 35px rgba(7,31,74,0.12)",
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+          <CardContent
+            sx={{ p: { xs: 3, md: 5 } }}
+          >
             <Box
               sx={{
                 display: "flex",
@@ -310,6 +332,7 @@ export default function ParticipantQuiz() {
                 alignItems: "center",
                 gap: 2,
                 mb: 3,
+                flexWrap: "wrap",
               }}
             >
               <Typography
@@ -317,6 +340,7 @@ export default function ParticipantQuiz() {
                 sx={{
                   color: "#071F4A",
                   fontWeight: 800,
+                  flex: 1,
                 }}
               >
                 {currentQuestion.question}
@@ -324,27 +348,39 @@ export default function ParticipantQuiz() {
 
               <Box
                 sx={{
-                  minWidth: 80,
+                  minWidth: 105,
                   textAlign: "center",
-                  bgcolor:
-                    timeLeft <= 5
-                      ? "#FEE4E2"
-                      : "#EEF4FF",
+                  bgcolor: timerUrgent
+                    ? "#FEE4E2"
+                    : "#EEF4FF",
                   borderRadius: 3,
-                  p: 1.5,
+                  px: 2,
+                  py: 1.5,
                 }}
               >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   sx={{
-                    fontWeight: 800,
-                    color:
-                      timeLeft <= 5
-                        ? "#D92D20"
-                        : "#071F4A",
+                    fontWeight: 900,
+                    color: timerUrgent
+                      ? "#D92D20"
+                      : "#071F4A",
+                    lineHeight: 1,
                   }}
                 >
-                  {timeLeft}s
+                  {timeLeft}
+                </Typography>
+
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: timerUrgent
+                      ? "#D92D20"
+                      : "#667085",
+                    fontWeight: 700,
+                  }}
+                >
+                  seconde{timeLeft > 1 ? "s" : ""}
                 </Typography>
               </Box>
             </Box>
@@ -353,15 +389,15 @@ export default function ParticipantQuiz() {
               variant="determinate"
               value={timerProgress}
               sx={{
-                height: 6,
-                borderRadius: 3,
+                height: 7,
+                borderRadius: 4,
                 mb: 4,
-
                 "& .MuiLinearProgress-bar": {
-                  bgcolor:
-                    timeLeft <= 5
-                      ? "#E3062C"
-                      : "#071F4A",
+                  bgcolor: timerUrgent
+                    ? "#E3062C"
+                    : "#071F4A",
+                  transition:
+                    "transform 0.95s linear",
                 },
               }}
             />
@@ -393,13 +429,17 @@ export default function ParticipantQuiz() {
                         borderRadius: 2,
                         p: 1.5,
                         mb: 2,
-                        cursor: "pointer",
+                        cursor: submitting
+                          ? "default"
+                          : "pointer",
+                        opacity: submitting ? 0.7 : 1,
                       }}
                     >
                       {currentQuestion.type ===
                       "multiple_choice" ? (
                         <Checkbox
                           checked={selected}
+                          disabled={submitting}
                           onChange={() =>
                             selectAnswer(answer.id)
                           }
@@ -407,6 +447,7 @@ export default function ParticipantQuiz() {
                       ) : (
                         <Radio
                           checked={selected}
+                          disabled={submitting}
                           onChange={() =>
                             selectAnswer(answer.id)
                           }
@@ -433,14 +474,13 @@ export default function ParticipantQuiz() {
               fullWidth
               variant="contained"
               disabled={submitting}
-              onClick={() => submitAnswer(false)}
+              onClick={() => void submitAnswer(false)}
               sx={{
                 bgcolor: "#E3062C",
                 mt: 2,
                 py: 1.4,
                 textTransform: "none",
                 fontWeight: 800,
-
                 "&:hover": {
                   bgcolor: "#C80527",
                 },
