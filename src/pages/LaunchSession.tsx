@@ -1027,17 +1027,10 @@ function ParticipantRow({
   const isCompleted =
     participant.completed_at !== null;
 
-  const liveAnsweredQuestions =
-    participant.answers_count ??
-    participant.answers?.length ??
-    0;
-
-  const answeredQuestions = isCompleted
-    ? totalQuestions
-    : Math.min(
-        totalQuestions,
-        liveAnsweredQuestions
-      );
+  const answeredQuestions = Math.min(
+    totalQuestions,
+    Math.max(0, participant.answers_count ?? 0)
+  );
 
   const progress =
     totalQuestions > 0
@@ -1047,9 +1040,8 @@ function ParticipantRow({
         )
       : 0;
 
-  const displayedScore = isCompleted
-    ? participant.score
-    : participant.live_score ?? 0;
+  const displayedScore =
+    participant.live_score ?? participant.score ?? 0;
 
   const scorePercentage =
     participant.total_points > 0
@@ -1122,9 +1114,7 @@ function ParticipantRow({
 
       <LinearProgress
         variant="determinate"
-        value={
-          isCompleted ? 100 : progress
-        }
+        value={progress}
         sx={{
           height: 7,
           borderRadius: 4,
