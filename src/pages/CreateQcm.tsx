@@ -23,7 +23,7 @@ export default function CreateQcm() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState(20);
-  const [mode, setMode] = useState("training");
+  const [mode, setMode] = useState("exam");
   const [isPublished, setIsPublished] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -39,12 +39,12 @@ export default function CreateQcm() {
       setLoading(true);
 
       await api.post("/qcms", {
-        title,
-        description,
-        duration,
-        mode,
-        is_published: isPublished,
-      });
+  title,
+  description,
+  duration,
+  is_published: isPublished,
+  training_mode: mode === "training",
+});
 
       alert("Le QCM a été créé avec succès.");
       navigate("/dashboard");
@@ -160,6 +160,18 @@ export default function CreateQcm() {
                   </MenuItem>
                 </Select>
               </FormControl>
+              <Typography
+  variant="body2"
+  sx={{
+    color: "#667085",
+    mt: -2,
+    mb: 3,
+  }}
+>
+  {mode === "training"
+    ? "Le participant pourra voir son score à la fin du QCM."
+    : "Le participant ne verra pas son score à la fin du QCM."}
+</Typography>
 
               <FormControlLabel
                 control={

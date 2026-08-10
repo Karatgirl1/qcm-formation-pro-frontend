@@ -42,6 +42,7 @@ type PublicSession = {
     id: number;
     title: string;
     description: string | null;
+    training_mode: boolean;
     questions: Question[];
   };
 };
@@ -178,12 +179,23 @@ export default function ParticipantQuiz() {
         session.qcm.questions.length - 1;
 
       if (isLastQuestion) {
-        await api.post(
+        const completeResponse = await api.post(
           `/public/participants/${participantId}/complete`
         );
 
+        const participantResult =
+          completeResponse.data?.participant;
+
         navigate("/participant/finished", {
           replace: true,
+          state: {
+            trainingMode:
+              session.qcm.training_mode === true,
+            score: participantResult?.score ?? 0,
+            totalPoints:
+              participantResult?.total_points ?? 0,
+            qcmTitle: session.qcm.title,
+          },
         });
 
         return;
