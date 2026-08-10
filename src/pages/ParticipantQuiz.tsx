@@ -172,6 +172,11 @@ export default function ParticipantQuiz() {
       setSubmitting(true);
 
       if (selectedAnswerIds.length > 0) {
+        console.log("ENVOI REPONSE", {
+  participant_id: participantId,
+  question_id: currentQuestion.id,
+  selected_answer_ids: selectedAnswerIds,
+});
         await api.post(
           `/public/participants/${participantId}/answers`,
           {
