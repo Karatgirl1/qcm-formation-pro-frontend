@@ -56,6 +56,7 @@ type Participant = {
   score: number;
   total_points: number;
   answers_count?: number;
+  live_score?: number;
   answers?: ParticipantAnswer[];
 };
 
@@ -1046,9 +1047,13 @@ function ParticipantRow({
         )
       : 0;
 
+  const displayedScore = isCompleted
+    ? participant.score
+    : participant.live_score ?? 0;
+
   const scorePercentage =
     participant.total_points > 0
-      ? (participant.score /
+      ? (displayedScore /
           participant.total_points) *
         100
       : null;
@@ -1104,7 +1109,7 @@ function ParticipantRow({
                     0
                   )} %`
                 : "Terminé"
-              : "En cours"
+              : `${displayedScore} pt${displayedScore > 1 ? "s" : ""}`
           }
           color={
             isCompleted
