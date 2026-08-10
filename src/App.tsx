@@ -16,7 +16,7 @@ import LaunchSession from "./pages/LaunchSession";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
-import ParticipantEnd from "./pages/ParticipantEnd";
+
 
 function ProtectedRoute({
   children,
