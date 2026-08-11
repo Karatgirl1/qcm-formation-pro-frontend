@@ -324,6 +324,29 @@ export default function ParticipantQuiz() {
           {totalQuestions}
         </Typography>
 
+        <Box
+          sx={{
+            mb: 2,
+            px: 2,
+            py: 1.25,
+            borderRadius: 2,
+            bgcolor: "#FFF4E5",
+            border: "1px solid #F79009",
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#7A2E0E",
+              fontWeight: 700,
+            }}
+          >
+            Diagnostic — currentIndex: {currentIndex} ·
+            displayQuestionNumber: {displayQuestionNumber} ·
+            questionId: {currentQuestion.id}
+          </Typography>
+        </Box>
+
         <LinearProgress
           variant="determinate"
           value={progress}
