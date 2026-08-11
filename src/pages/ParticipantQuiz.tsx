@@ -343,7 +343,8 @@ export default function ParticipantQuiz() {
           >
             Diagnostic — currentIndex: {currentIndex} ·
             displayQuestionNumber: {displayQuestionNumber} ·
-            questionId: {currentQuestion.id}
+            questionId: {currentQuestion.id} ·
+            questionText: {currentQuestion.question}
           </Typography>
         </Box>
 
