@@ -55,6 +55,8 @@ export default function ParticipantQuiz() {
     useState<PublicSession | null>(null);
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [displayQuestionNumber, setDisplayQuestionNumber] =
+    useState(1);
   const [selectedAnswerIds, setSelectedAnswerIds] =
     useState<number[]>([]);
 
@@ -86,6 +88,8 @@ export default function ParticipantQuiz() {
         );
 
         setSession(response.data);
+        setCurrentIndex(0);
+        setDisplayQuestionNumber(1);
       } catch (error: any) {
         console.error(error);
 
@@ -202,6 +206,7 @@ export default function ParticipantQuiz() {
       }
 
       setCurrentIndex((current) => current + 1);
+      setDisplayQuestionNumber((current) => current + 1);
     } catch (error: any) {
       console.error(error);
 
@@ -277,15 +282,10 @@ export default function ParticipantQuiz() {
   const totalQuestions =
     session.qcm.questions.length;
 
-  const displayedQuestionIndex =
-    session.qcm.questions.findIndex(
-      (question) => question.id === currentQuestion.id
-    );
-
-  const questionNumber =
-    displayedQuestionIndex >= 0
-      ? displayedQuestionIndex + 1
-      : currentIndex + 1;
+  const questionNumber = Math.min(
+    displayQuestionNumber,
+    totalQuestions
+  );
 
   const progress =
     (questionNumber / totalQuestions) * 100;
