@@ -452,6 +452,9 @@ export default function ParticipantQuiz() {
                         <Checkbox
                           checked={selected}
                           disabled={submitting}
+                          onClick={(event) =>
+                            event.stopPropagation()
+                          }
                           onChange={() =>
                             selectAnswer(answer.id)
                           }
@@ -460,6 +463,9 @@ export default function ParticipantQuiz() {
                         <Radio
                           checked={selected}
                           disabled={submitting}
+                          onClick={(event) =>
+                            event.stopPropagation()
+                          }
                           onChange={() =>
                             selectAnswer(answer.id)
                           }
