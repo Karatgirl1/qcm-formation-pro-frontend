@@ -277,8 +277,18 @@ export default function ParticipantQuiz() {
   const totalQuestions =
     session.qcm.questions.length;
 
+  const displayedQuestionIndex =
+    session.qcm.questions.findIndex(
+      (question) => question.id === currentQuestion.id
+    );
+
+  const questionNumber =
+    displayedQuestionIndex >= 0
+      ? displayedQuestionIndex + 1
+      : currentIndex + 1;
+
   const progress =
-    ((currentIndex + 1) / totalQuestions) * 100;
+    (questionNumber / totalQuestions) * 100;
 
   const initialTime = Math.max(
     1,
@@ -310,7 +320,7 @@ export default function ParticipantQuiz() {
         </Typography>
 
         <Typography sx={{ color: "#667085", mb: 1 }}>
-          Question {currentIndex + 1} sur{" "}
+          Question {questionNumber} sur{" "}
           {totalQuestions}
         </Typography>
 
