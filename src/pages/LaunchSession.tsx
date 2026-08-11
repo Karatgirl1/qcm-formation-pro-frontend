@@ -26,6 +26,7 @@ import {
   PlayArrow,
   Refresh,
   Search,
+  Visibility,
 } from "@mui/icons-material";
 
 import {
@@ -37,6 +38,10 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   InputAdornment,
   Paper,
   Table,
@@ -52,6 +57,18 @@ import {
 
 import api from "../api/axios";
 
+type ParticipantDetail = {
+  question_id: number;
+  question: string;
+  selected_answer_ids: number[];
+  selected_answers: string[];
+  correct_answers: string[];
+  is_correct: boolean;
+  points_awarded: number;
+  points_possible: number;
+  answered_at: string | null;
+};
+
 type Participant = {
   id: number;
   first_name: string;
@@ -60,6 +77,8 @@ type Participant = {
   completed_at: string | null;
   score: number;
   total_points: number;
+  live_score?: number;
+  details?: ParticipantDetail[];
 };
 
 type SessionQcm = {
@@ -91,6 +110,8 @@ export default function LaunchSession() {
   const [closing, setClosing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedParticipant, setSelectedParticipant] =
+    useState<Participant | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] =
     useState<"name" | "score" | "status">(
@@ -956,6 +977,9 @@ export default function LaunchSession() {
                                 sortDirection
                               }
                               onSort={changeSort}
+                              onOpenParticipant={
+                                setSelectedParticipant
+                              }
                             />
 
                             {displayedParticipants.length ===
@@ -1036,6 +1060,12 @@ export default function LaunchSession() {
           </CardContent>
         </Card>
       </Box>
+
+      <ParticipantDetailsDialog
+        participant={selectedParticipant}
+        open={selectedParticipant !== null}
+        onClose={() => setSelectedParticipant(null)}
+      />
     </Box>
   );
 }
@@ -1249,6 +1279,7 @@ type ResultsTableProps = {
   sortKey: SortKey;
   sortDirection: "asc" | "desc";
   onSort: (key: SortKey) => void;
+  onOpenParticipant: (participant: Participant) => void;
 };
 
 function ResultsTable({
@@ -1256,6 +1287,7 @@ function ResultsTable({
   sortKey,
   sortDirection,
   onSort,
+  onOpenParticipant,
 }: ResultsTableProps) {
   return (
     <TableContainer
@@ -1322,6 +1354,8 @@ function ResultsTable({
                 Statut
               </TableSortLabel>
             </TableCell>
+
+            <TableCell align="center">Détails</TableCell>
           </TableRow>
         </TableHead>
 
@@ -1401,11 +1435,290 @@ function ResultsTable({
                     size="small"
                   />
                 </TableCell>
+
+                <TableCell align="center">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<Visibility />}
+                    onClick={() =>
+                      onOpenParticipant(participant)
+                    }
+                    sx={{
+                      color: "#071F4A",
+                      borderColor: "#071F4A",
+                      textTransform: "none",
+                      fontWeight: 700,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Voir
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })}
         </TableBody>
       </Table>
     </TableContainer>
+  );
+}
+
+
+type ParticipantDetailsDialogProps = {
+  participant: Participant | null;
+  open: boolean;
+  onClose: () => void;
+};
+
+function ParticipantDetailsDialog({
+  participant,
+  open,
+  onClose,
+}: ParticipantDetailsDialogProps) {
+  if (!participant) {
+    return null;
+  }
+
+  const details = participant.details ?? [];
+  const isCompleted = participant.completed_at !== null;
+  const scorePercentage =
+    participant.total_points > 0
+      ? Math.round(
+          (participant.score / participant.total_points) * 100
+        )
+      : null;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="md"
+    >
+      <DialogTitle
+        sx={{
+          color: "#071F4A",
+          fontWeight: 800,
+          pr: 6,
+        }}
+      >
+        Résultats de {participant.first_name}{" "}
+        {participant.last_name}
+      </DialogTitle>
+
+      <DialogContent dividers>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(3, 1fr)",
+            },
+            gap: 2,
+            mb: 3,
+          }}
+        >
+          <Card variant="outlined">
+            <CardContent>
+              <Typography
+                variant="body2"
+                sx={{ color: "#667085" }}
+              >
+                Statut
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#071F4A",
+                  fontWeight: 800,
+                  mt: 0.5,
+                }}
+              >
+                {isCompleted ? "Terminé" : "En cours"}
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Typography
+                variant="body2"
+                sx={{ color: "#667085" }}
+              >
+                Score
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#071F4A",
+                  fontWeight: 800,
+                  mt: 0.5,
+                }}
+              >
+                {isCompleted
+                  ? `${participant.score} / ${participant.total_points}`
+                  : `${participant.live_score ?? 0} point(s)`}
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card variant="outlined">
+            <CardContent>
+              <Typography
+                variant="body2"
+                sx={{ color: "#667085" }}
+              >
+                Réussite
+              </Typography>
+              <Typography
+                sx={{
+                  color: "#071F4A",
+                  fontWeight: 800,
+                  mt: 0.5,
+                }}
+              >
+                {scorePercentage !== null
+                  ? `${scorePercentage} %`
+                  : "—"}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {details.length === 0 ? (
+          <Alert severity="info">
+            Aucune réponse détaillée enregistrée pour ce
+            participant.
+          </Alert>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            {details.map((detail, index) => (
+              <Card
+                key={`${detail.question_id}-${index}`}
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  borderColor: detail.is_correct
+                    ? "#A6F4C5"
+                    : "#FECDCA",
+                  bgcolor: detail.is_correct
+                    ? "#F6FEF9"
+                    : "#FFFBFA",
+                }}
+              >
+                <CardContent>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 2,
+                      mb: 2,
+                    }}
+                  >
+                    <Typography
+                      sx={{
+                        color: "#071F4A",
+                        fontWeight: 800,
+                      }}
+                    >
+                      {index + 1}. {detail.question}
+                    </Typography>
+
+                    <Chip
+                      size="small"
+                      color={
+                        detail.is_correct
+                          ? "success"
+                          : "error"
+                      }
+                      label={
+                        detail.is_correct
+                          ? "Bonne réponse"
+                          : "Mauvaise réponse"
+                      }
+                    />
+                  </Box>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#667085",
+                      mb: 0.5,
+                    }}
+                  >
+                    Réponse du participant
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: detail.is_correct
+                        ? "#027A48"
+                        : "#B42318",
+                      fontWeight: 700,
+                      mb: 2,
+                    }}
+                  >
+                    {detail.selected_answers.length > 0
+                      ? detail.selected_answers.join(", ")
+                      : "Aucune réponse"}
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#667085",
+                      mb: 0.5,
+                    }}
+                  >
+                    Bonne réponse
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "#027A48",
+                      fontWeight: 700,
+                      mb: 2,
+                    }}
+                  >
+                    {detail.correct_answers.length > 0
+                      ? detail.correct_answers.join(", ")
+                      : "Non renseignée"}
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#071F4A",
+                      fontWeight: 700,
+                    }}
+                  >
+                    Points : {detail.points_awarded} /{" "}
+                    {detail.points_possible}
+                  </Typography>
+                </CardContent>
+              </Card>
+            ))}
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ p: 2 }}>
+        <Button
+          onClick={onClose}
+          variant="contained"
+          sx={{
+            bgcolor: "#071F4A",
+            textTransform: "none",
+            fontWeight: 700,
+          }}
+        >
+          Fermer
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
