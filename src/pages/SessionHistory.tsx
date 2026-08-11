@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowBack,
   CheckCircle,
+  Download,
   History,
   Visibility,
 } from "@mui/icons-material";
@@ -31,6 +32,7 @@ import {
 } from "@mui/material";
 
 import api from "../api/axios";
+import * as XLSX from "xlsx";
 
 type HistorySession = {
   id: number;
@@ -109,6 +111,8 @@ export default function SessionHistory() {
     useState<Participant | null>(null);
   const [loadingSessionId, setLoadingSessionId] =
     useState<number | null>(null);
+  const [exportingSessionId, setExportingSessionId] =
+    useState<number | null>(null);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -165,6 +169,114 @@ export default function SessionHistory() {
       );
     } finally {
       setLoadingSessionId(null);
+    }
+  };
+
+
+  const exportSessionExcel = async (
+    sessionId: number,
+    sessionCode: string
+  ) => {
+    try {
+      setExportingSessionId(sessionId);
+
+      const response = await api.get(
+        `/sessions/${sessionId}`
+      );
+
+      const sessionDetails: SessionDetails =
+        response.data;
+
+      const summaryRows = sessionDetails.participants.map(
+        (participant) => {
+          const percentage =
+            participant.total_points > 0
+              ? Math.round(
+                  (participant.score /
+                    participant.total_points) *
+                    100
+                )
+              : 0;
+
+          return {
+            Prénom: participant.first_name,
+            Nom: participant.last_name,
+            Statut: participant.completed_at
+              ? "Terminé"
+              : "En cours",
+            Score: participant.score,
+            "Total points": participant.total_points,
+            "Réussite (%)": percentage,
+          };
+        }
+      );
+
+      const detailRows =
+        sessionDetails.participants.flatMap(
+          (participant) =>
+            (participant.details ?? []).map(
+              (detail, index) => ({
+                Prénom: participant.first_name,
+                Nom: participant.last_name,
+                "N° question": index + 1,
+                Question: detail.question,
+                "Réponse donnée":
+                  detail.selected_answers.length > 0
+                    ? detail.selected_answers.join(", ")
+                    : "Aucune réponse",
+                "Bonne réponse":
+                  detail.correct_answers.join(", "),
+                Résultat: detail.is_correct
+                  ? "Correct"
+                  : "Incorrect",
+                "Points obtenus":
+                  detail.points_awarded,
+                "Points possibles":
+                  detail.points_possible,
+              })
+            )
+        );
+
+      const workbook = XLSX.utils.book_new();
+
+      const summarySheet =
+        XLSX.utils.json_to_sheet(summaryRows);
+      XLSX.utils.book_append_sheet(
+        workbook,
+        summarySheet,
+        "Résultats"
+      );
+
+      const detailSheet =
+        XLSX.utils.json_to_sheet(detailRows);
+      XLSX.utils.book_append_sheet(
+        workbook,
+        detailSheet,
+        "Détails"
+      );
+
+      const safeTitle = (
+        sessionDetails.qcm?.title ?? "qcm"
+      )
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9-_]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase();
+
+      XLSX.writeFile(
+        workbook,
+        `resultats-${safeTitle || "qcm"}-${sessionCode}.xlsx`
+      );
+    } catch (error: any) {
+      console.error(error);
+
+      alert(
+        error.response?.data?.message ??
+          "Impossible d’exporter cette session."
+      );
+    } finally {
+      setExportingSessionId(null);
     }
   };
 
@@ -336,32 +448,77 @@ export default function SessionHistory() {
                         </TableCell>
 
                         <TableCell align="center">
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={
-                              loadingSessionId ===
-                              session.id ? (
-                                <CircularProgress size={16} />
-                              ) : (
-                                <Visibility />
-                              )
-                            }
-                            onClick={() =>
-                              void openResults(session.id)
-                            }
-                            disabled={
-                              loadingSessionId === session.id
-                            }
+                          <Box
                             sx={{
-                              color: "#071F4A",
-                              borderColor: "#071F4A",
-                              textTransform: "none",
-                              fontWeight: 700,
+                              display: "flex",
+                              gap: 1,
+                              justifyContent: "center",
+                              flexWrap: "wrap",
                             }}
                           >
-                            Voir
-                          </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={
+                                loadingSessionId ===
+                                session.id ? (
+                                  <CircularProgress size={16} />
+                                ) : (
+                                  <Visibility />
+                                )
+                              }
+                              onClick={() =>
+                                void openResults(session.id)
+                              }
+                              disabled={
+                                loadingSessionId === session.id
+                              }
+                              sx={{
+                                color: "#071F4A",
+                                borderColor: "#071F4A",
+                                textTransform: "none",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Voir
+                            </Button>
+
+                            <Button
+                              size="small"
+                              variant="contained"
+                              startIcon={
+                                exportingSessionId ===
+                                session.id ? (
+                                  <CircularProgress
+                                    size={16}
+                                    sx={{ color: "white" }}
+                                  />
+                                ) : (
+                                  <Download />
+                                )
+                              }
+                              onClick={() =>
+                                void exportSessionExcel(
+                                  session.id,
+                                  session.code
+                                )
+                              }
+                              disabled={
+                                exportingSessionId ===
+                                session.id
+                              }
+                              sx={{
+                                bgcolor: "#071F4A",
+                                textTransform: "none",
+                                fontWeight: 700,
+                                "&:hover": {
+                                  bgcolor: "#0A2A63",
+                                },
+                              }}
+                            >
+                              Excel
+                            </Button>
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
