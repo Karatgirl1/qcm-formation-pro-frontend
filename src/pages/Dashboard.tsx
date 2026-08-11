@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/axios";
@@ -41,25 +41,64 @@ type Qcm = {
   is_published: boolean;
 };
 
+type DashboardStatistics = {
+  qcms_count: number;
+  participants_count: number;
+  average_result: number | null;
+  active_sessions_count: number;
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
   const [qcms, setQcms] = useState<Qcm[]>([]);
+  const [statistics, setStatistics] =
+    useState<DashboardStatistics>({
+      qcms_count: 0,
+      participants_count: 0,
+      average_result: null,
+      active_sessions_count: 0,
+    });
   const [loading, setLoading] = useState(true);
 
+  const topRef = useRef<HTMLDivElement | null>(null);
+  const qcmsRef = useRef<HTMLDivElement | null>(null);
+  const participantsRef = useRef<HTMLDivElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    loadQcms();
+    void loadDashboard();
   }, []);
 
-  const loadQcms = async () => {
+  const loadDashboard = async () => {
     try {
-      const response = await api.get("/qcms");
-      setQcms(response.data);
+      setLoading(true);
+
+      const [qcmsResponse, statisticsResponse] =
+        await Promise.all([
+          api.get("/qcms"),
+          api.get("/statistics"),
+        ]);
+
+      setQcms(qcmsResponse.data);
+      setStatistics(statisticsResponse.data);
     } catch (error) {
-      console.error("Erreur lors du chargement des QCM :", error);
+      console.error(
+        "Erreur lors du chargement du tableau de bord :",
+        error
+      );
     } finally {
       setLoading(false);
     }
+  };
+
+  const scrollTo = (
+    ref: React.RefObject<HTMLDivElement | null>
+  ) => {
+    ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
 
   const logout = () => {
@@ -119,6 +158,7 @@ export default function Dashboard() {
 
           <List>
             <ListItemButton
+              onClick={() => scrollTo(topRef)}
               sx={{
                 bgcolor: "#E3062C",
                 borderRadius: 2,
@@ -136,7 +176,10 @@ export default function Dashboard() {
               <ListItemText primary="Tableau de bord" />
             </ListItemButton>
 
-            <ListItemButton sx={{ borderRadius: 2 }}>
+            <ListItemButton
+              onClick={() => scrollTo(qcmsRef)}
+              sx={{ borderRadius: 2 }}
+            >
               <ListItemIcon sx={{ color: "white" }}>
                 <Quiz />
               </ListItemIcon>
@@ -155,7 +198,10 @@ export default function Dashboard() {
               <ListItemText primary="Nouveau QCM" />
             </ListItemButton>
 
-            <ListItemButton sx={{ borderRadius: 2 }}>
+            <ListItemButton
+              onClick={() => scrollTo(participantsRef)}
+              sx={{ borderRadius: 2 }}
+            >
               <ListItemIcon sx={{ color: "white" }}>
                 <Groups />
               </ListItemIcon>
@@ -163,7 +209,10 @@ export default function Dashboard() {
               <ListItemText primary="Participants" />
             </ListItemButton>
 
-            <ListItemButton sx={{ borderRadius: 2 }}>
+            <ListItemButton
+              onClick={() => scrollTo(resultsRef)}
+              sx={{ borderRadius: 2 }}
+            >
               <ListItemIcon sx={{ color: "white" }}>
                 <Assessment />
               </ListItemIcon>
@@ -240,7 +289,7 @@ export default function Dashboard() {
           </Toolbar>
         </AppBar>
 
-        <Box sx={{ p: { xs: 2, md: 4 } }}>
+        <Box ref={topRef} sx={{ p: { xs: 2, md: 4 } }}>
           <Typography
             variant="h4"
             sx={{
@@ -269,32 +318,48 @@ export default function Dashboard() {
           >
             <StatCard
               title="Mes QCM"
-              value={String(qcms.length)}
+              value={String(statistics.qcms_count)}
               subtitle="QCM créés"
               icon={<Quiz />}
               color="#071F4A"
             />
 
-            <StatCard
-              title="Participants"
-              value="0"
-              subtitle="Inscriptions totales"
-              icon={<Groups />}
-              color="#E3062C"
-            />
+            <Box ref={participantsRef}>
+              <StatCard
+                title="Participants"
+                value={String(
+                  statistics.participants_count
+                )}
+                subtitle="Participations totales"
+                icon={<Groups />}
+                color="#E3062C"
+              />
+            </Box>
 
-            <StatCard
-              title="Résultat moyen"
-              value="—"
-              subtitle="Aucun résultat"
-              icon={<Assessment />}
-              color="#071F4A"
-            />
+            <Box ref={resultsRef}>
+              <StatCard
+                title="Résultat moyen"
+                value={
+                  statistics.average_result === null
+                    ? "—"
+                    : `${statistics.average_result} %`
+                }
+                subtitle={
+                  statistics.average_result === null
+                    ? "Aucun résultat"
+                    : "Moyenne des QCM terminés"
+                }
+                icon={<Assessment />}
+                color="#071F4A"
+              />
+            </Box>
 
             <StatCard
               title="Sessions actives"
-              value="0"
-              subtitle="Session en cours"
+              value={String(
+                statistics.active_sessions_count
+              )}
+              subtitle="Sessions en cours"
               icon={<DashboardIcon />}
               color="#E3062C"
             />
@@ -302,8 +367,10 @@ export default function Dashboard() {
 
           {/* Zone des QCM */}
           <Card
+            ref={qcmsRef}
             sx={{
               mt: 4,
+              scrollMarginTop: 24,
               borderRadius: 3,
               boxShadow: "0 6px 25px rgba(7,31,74,0.08)",
             }}
