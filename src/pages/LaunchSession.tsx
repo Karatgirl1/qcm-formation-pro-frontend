@@ -19,11 +19,13 @@ import {
   CheckCircle,
   Close,
   ContentCopy,
+  Download,
   Groups,
   HourglassTop,
   Launch,
   PlayArrow,
   Refresh,
+  Search,
 } from "@mui/icons-material";
 
 import {
@@ -35,17 +37,20 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  LinearProgress,
+  InputAdornment,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
   TextField,
   Typography,
 } from "@mui/material";
 
 import api from "../api/axios";
-
-type ParticipantAnswer = {
-  id: number;
-  question_id: number;
-};
 
 type Participant = {
   id: number;
@@ -55,9 +60,6 @@ type Participant = {
   completed_at: string | null;
   score: number;
   total_points: number;
-  answers_count?: number;
-  live_score?: number;
-  answers?: ParticipantAnswer[];
 };
 
 type SessionQcm = {
@@ -89,6 +91,13 @@ export default function LaunchSession() {
   const [closing, setClosing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortKey, setSortKey] =
+    useState<"name" | "score" | "status">(
+      "name"
+    );
+  const [sortDirection, setSortDirection] =
+    useState<"asc" | "desc">("asc");
 
   const [errorMessage, setErrorMessage] =
     useState("");
@@ -99,8 +108,6 @@ export default function LaunchSession() {
 
   const participants = session?.participants ?? [];
 
-  const totalQuestions =
-    session?.qcm?.questions?.length ?? 0;
 
   const completedParticipants = useMemo(
     () =>
@@ -144,6 +151,91 @@ export default function LaunchSession() {
 
     return totalPercentage / results.length;
   }, [completedParticipants]);
+
+  const displayedParticipants = useMemo(() => {
+    const normalizedSearch = searchTerm
+      .trim()
+      .toLocaleLowerCase("fr-FR");
+
+    const filtered = participants.filter(
+      (participant) => {
+        const fullName =
+          `${participant.first_name} ${participant.last_name}`
+            .toLocaleLowerCase("fr-FR");
+
+        return (
+          normalizedSearch.length === 0 ||
+          fullName.includes(normalizedSearch)
+        );
+      }
+    );
+
+    return [...filtered].sort((first, second) => {
+      const firstCompleted =
+        first.completed_at !== null;
+      const secondCompleted =
+        second.completed_at !== null;
+
+
+      const firstScore =
+        first.total_points > 0
+          ? (first.score / first.total_points) * 100
+          : -1;
+      const secondScore =
+        second.total_points > 0
+          ? (second.score / second.total_points) * 100
+          : -1;
+
+      let comparison = 0;
+
+      if (sortKey === "name") {
+        const firstName =
+          `${first.last_name} ${first.first_name}`;
+        const secondName =
+          `${second.last_name} ${second.first_name}`;
+
+        comparison = firstName.localeCompare(
+          secondName,
+          "fr-FR",
+          { sensitivity: "base" }
+        );
+      }
+
+
+      if (sortKey === "score") {
+        comparison = firstScore - secondScore;
+      }
+
+      if (sortKey === "status") {
+        comparison =
+          Number(firstCompleted) -
+          Number(secondCompleted);
+      }
+
+      return sortDirection === "asc"
+        ? comparison
+        : -comparison;
+    });
+  }, [
+    participants,
+    searchTerm,
+    sortDirection,
+    sortKey,
+  ]);
+
+  const changeSort = (
+    key: "name" | "score" | "status"
+  ) => {
+    if (sortKey === key) {
+      setSortDirection((current) =>
+        current === "asc" ? "desc" : "asc"
+      );
+      return;
+    }
+
+    setSortKey(key);
+    setSortDirection("asc");
+  };
 
   const extractErrorMessage = (
     error: any,
@@ -313,6 +405,90 @@ export default function LaunchSession() {
       "_blank",
       "noopener,noreferrer"
     );
+  };
+
+
+  const exportResultsCsv = () => {
+    if (!session) {
+      return;
+    }
+
+    if (participants.length === 0) {
+      alert("Aucun participant à exporter.");
+      return;
+    }
+
+    const escapeCsvValue = (value: string | number) => {
+      const textValue = String(value ?? "");
+      return `"${textValue.replace(/"/g, '""')}"`;
+    };
+
+    const rows = [
+      [
+        "Prénom",
+        "Nom",
+        "Score",
+        "Statut",
+        "Début",
+        "Fin",
+      ],
+      ...participants.map((participant) => {
+        const isCompleted =
+          participant.completed_at !== null;
+
+
+        const scorePercentage =
+          participant.total_points > 0
+            ? (
+                (participant.score /
+                  participant.total_points) *
+                100
+              ).toFixed(0) + " %"
+            : "";
+
+        return [
+          participant.first_name,
+          participant.last_name,
+          scorePercentage,
+          isCompleted ? "Terminé" : "En cours",
+          participant.started_at ?? "",
+          participant.completed_at ?? "",
+        ];
+      }),
+    ];
+
+    const csvContent = rows
+      .map((row) =>
+        row.map((value) => escapeCsvValue(value)).join(";")
+      )
+      .join("\r\n");
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    const safeTitle = (
+      session.qcm?.title ?? "qcm"
+    )
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase();
+
+    link.href = downloadUrl;
+    link.download =
+      `resultats-${safeTitle || "qcm"}-${session.code}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(downloadUrl);
   };
 
   const closeSession = async () => {
@@ -652,32 +828,55 @@ export default function LaunchSession() {
                             </Typography>
                           </Box>
 
-                          <Button
-                            startIcon={
-                              refreshing ? (
-                                <CircularProgress
-                                  size={17}
-                                />
-                              ) : (
-                                <Refresh />
-                              )
-                            }
-                            onClick={() =>
-                              void loadSessionDetails(
-                                true
-                              )
-                            }
-                            disabled={refreshing}
+                          <Box
                             sx={{
-                              color:
-                                "#071F4A",
-                              textTransform:
-                                "none",
-                              fontWeight: 700,
+                              display: "flex",
+                              gap: 1,
+                              flexWrap: "wrap",
                             }}
                           >
-                            Actualiser
-                          </Button>
+                            <Button
+                              startIcon={<Download />}
+                              onClick={exportResultsCsv}
+                              disabled={
+                                participants.length === 0
+                              }
+                              variant="outlined"
+                              sx={{
+                                color: "#071F4A",
+                                borderColor: "#071F4A",
+                                textTransform: "none",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Exporter CSV
+                            </Button>
+
+                            <Button
+                              startIcon={
+                                refreshing ? (
+                                  <CircularProgress
+                                    size={17}
+                                  />
+                                ) : (
+                                  <Refresh />
+                                )
+                              }
+                              onClick={() =>
+                                void loadSessionDetails(
+                                  true
+                                )
+                              }
+                              disabled={refreshing}
+                              sx={{
+                                color: "#071F4A",
+                                textTransform: "none",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Actualiser
+                            </Button>
+                          </Box>
                         </Box>
 
                         {averageScore !== null && (
@@ -702,50 +901,75 @@ export default function LaunchSession() {
                         0 ? (
                           <Box
                             sx={{
-                              textAlign:
-                                "center",
+                              textAlign: "center",
                               py: 5,
-                              bgcolor:
-                                "#F8FAFC",
+                              bgcolor: "#F8FAFC",
                               borderRadius: 2,
                             }}
                           >
                             <Groups
                               sx={{
                                 fontSize: 55,
-                                color:
-                                  "#98A2B3",
+                                color: "#98A2B3",
                               }}
                             />
 
                             <Typography
                               sx={{
-                                color:
-                                  "#667085",
+                                color: "#667085",
                                 mt: 1,
                               }}
                             >
-                              Aucun participant
-                              connecté pour le
-                              moment.
+                              Aucun participant connecté
+                              pour le moment.
                             </Typography>
                           </Box>
                         ) : (
-                          participants.map(
-                            (participant) => (
-                              <ParticipantRow
-                                key={
-                                  participant.id
-                                }
-                                participant={
-                                  participant
-                                }
-                                totalQuestions={
-                                  totalQuestions
-                                }
-                              />
-                            )
-                          )
+                          <>
+                            <TextField
+                              fullWidth
+                              value={searchTerm}
+                              onChange={(event) =>
+                                setSearchTerm(
+                                  event.target.value
+                                )
+                              }
+                              placeholder="Rechercher un participant"
+                              sx={{ mb: 2 }}
+                              slotProps={{
+                                input: {
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <Search />
+                                    </InputAdornment>
+                                  ),
+                                },
+                              }}
+                            />
+
+                            <ResultsTable
+                              participants={
+                                displayedParticipants
+                              }
+                              sortKey={sortKey}
+                              sortDirection={
+                                sortDirection
+                              }
+                              onSort={changeSort}
+                            />
+
+                            {displayedParticipants.length ===
+                              0 && (
+                              <Alert
+                                severity="info"
+                                sx={{ mt: 2 }}
+                              >
+                                Aucun participant ne
+                                correspond à cette
+                                recherche.
+                              </Alert>
+                            )}
+                          </>
                         )}
                       </CardContent>
                     </Card>
@@ -1015,118 +1239,173 @@ function StatisticCard({
   );
 }
 
-type ParticipantRowProps = {
-  participant: Participant;
-  totalQuestions: number;
+type SortKey =
+  | "name"
+  | "score"
+  | "status";
+
+type ResultsTableProps = {
+  participants: Participant[];
+  sortKey: SortKey;
+  sortDirection: "asc" | "desc";
+  onSort: (key: SortKey) => void;
 };
 
-function ParticipantRow({
-  participant,
-  totalQuestions,
-}: ParticipantRowProps) {
-  const isCompleted =
-    participant.completed_at !== null;
-
-  const answeredQuestions = Math.min(
-    totalQuestions,
-    Math.max(0, participant.answers_count ?? 0)
-  );
-
-  const progress =
-    totalQuestions > 0
-      ? Math.min(
-          100,
-          (answeredQuestions / totalQuestions) * 100
-        )
-      : 0;
-
-  const displayedScore =
-    participant.live_score ?? participant.score ?? 0;
-
-  const scorePercentage =
-    participant.total_points > 0
-      ? (displayedScore /
-          participant.total_points) *
-        100
-      : null;
-
-
+function ResultsTable({
+  participants,
+  sortKey,
+  sortDirection,
+  onSort,
+}: ResultsTableProps) {
   return (
-    <Box
+    <TableContainer
+      component={Paper}
+      variant="outlined"
       sx={{
-        p: 2,
-        mb: 2,
-        border: "1px solid #E4E7EC",
         borderRadius: 2,
-        bgcolor: "#FFFFFF",
+        boxShadow: "none",
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 2,
-          flexWrap: "wrap",
-        }}
+      <Table
+        size="small"
+        aria-label="Résultats des participants"
       >
-        <Box>
-          <Typography
+        <TableHead>
+          <TableRow
             sx={{
-              color: "#071F4A",
-              fontWeight: 700,
+              bgcolor: "#F8FAFC",
             }}
           >
-            {participant.first_name}{" "}
-            {participant.last_name}
-          </Typography>
+            <TableCell>
+              <TableSortLabel
+                active={sortKey === "name"}
+                direction={
+                  sortKey === "name"
+                    ? sortDirection
+                    : "asc"
+                }
+                onClick={() => onSort("name")}
+              >
+                Participant
+              </TableSortLabel>
+            </TableCell>
 
-          <Typography
-            variant="body2"
-            sx={{
-              color: "#667085",
-            }}
-          >
-            {answeredQuestions} /{" "}
-            {totalQuestions} question
-            {totalQuestions > 1 ? "s" : ""}
-          </Typography>
-        </Box>
 
-        <Chip
-          label={
-            isCompleted
-              ? scorePercentage !== null
-                ? `Terminé · ${scorePercentage.toFixed(
-                    0
-                  )} %`
-                : "Terminé"
-              : `${displayedScore} pt${displayedScore > 1 ? "s" : ""}`
-          }
-          color={
-            isCompleted
-              ? "success"
-              : "warning"
-          }
-          size="small"
-        />
-      </Box>
+            <TableCell align="center">
+              Score
+            </TableCell>
 
-      <LinearProgress
-        variant="determinate"
-        value={progress}
-        sx={{
-          height: 7,
-          borderRadius: 4,
-          mt: 2,
+            <TableCell align="center">
+              <TableSortLabel
+                active={sortKey === "score"}
+                direction={
+                  sortKey === "score"
+                    ? sortDirection
+                    : "asc"
+                }
+                onClick={() => onSort("score")}
+              >
+                Réussite
+              </TableSortLabel>
+            </TableCell>
 
-          "& .MuiLinearProgress-bar": {
-            bgcolor: isCompleted
-              ? "#039855"
-              : "#E3062C",
-          },
-        }}
-      />
-    </Box>
+            <TableCell align="center">
+              <TableSortLabel
+                active={sortKey === "status"}
+                direction={
+                  sortKey === "status"
+                    ? sortDirection
+                    : "asc"
+                }
+                onClick={() => onSort("status")}
+              >
+                Statut
+              </TableSortLabel>
+            </TableCell>
+          </TableRow>
+        </TableHead>
+
+        <TableBody>
+          {participants.map((participant) => {
+            const isCompleted =
+              participant.completed_at !== null;
+
+
+            const scorePercentage =
+              participant.total_points > 0
+                ? (participant.score /
+                    participant.total_points) *
+                  100
+                : null;
+
+            return (
+              <TableRow
+                key={participant.id}
+                hover
+                sx={{
+                  "&:last-child td": {
+                    borderBottom: 0,
+                  },
+                }}
+              >
+                <TableCell>
+                  <Typography
+                    sx={{
+                      color: "#071F4A",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {participant.first_name}{" "}
+                    {participant.last_name}
+                  </Typography>
+                </TableCell>
+
+                <TableCell align="center">
+                  {isCompleted
+                    ? `${participant.score} / ${participant.total_points}`
+                    : "—"}
+                </TableCell>
+
+                <TableCell align="center">
+                  <Typography
+                    sx={{
+                      fontWeight: 800,
+                      color:
+                        scorePercentage === null
+                          ? "#98A2B3"
+                          : scorePercentage >= 50
+                            ? "#027A48"
+                            : "#B42318",
+                    }}
+                  >
+                    {scorePercentage !== null
+                      ? `${scorePercentage.toFixed(
+                          0
+                        )} %`
+                      : "—"}
+                  </Typography>
+                </TableCell>
+
+                <TableCell align="center">
+                  <Chip
+                    label={
+                      isCompleted
+                        ? "Terminé"
+                        : "En cours"
+                    }
+                    color={
+                      isCompleted
+                        ? "success"
+                        : "warning"
+                    }
+                    size="small"
+                  />
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
   );
 }
