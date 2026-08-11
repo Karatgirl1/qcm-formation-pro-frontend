@@ -17,6 +17,7 @@ import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
 import SessionHistory from "./pages/SessionHistory";
+import SharedResults from "./pages/SharedResults";
 
 
 function ProtectedRoute({
@@ -48,6 +49,10 @@ function App() {
         path="/play/:code"
         element={<ParticipantQuiz />}
       />
+      <Route
+  path="/shared-results/:token"
+  element={<SharedResults />}
+/>
 
      <Route
   path="/participant/finished"

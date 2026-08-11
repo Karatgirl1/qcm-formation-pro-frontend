@@ -4,8 +4,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowBack,
   CheckCircle,
+  ContentCopy,
   Download,
   History,
+  LinkOff,
+  Share,
   Visibility,
 } from "@mui/icons-material";
 
@@ -41,6 +44,7 @@ type HistorySession = {
   started_at: string | null;
   ended_at: string | null;
   participants_count: number;
+  sharing_enabled: boolean;
 };
 
 type HistoryResponse = {
@@ -113,6 +117,8 @@ export default function SessionHistory() {
     useState<number | null>(null);
   const [exportingSessionId, setExportingSessionId] =
     useState<number | null>(null);
+  const [sharingSessionId, setSharingSessionId] =
+    useState<number | null>(null);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -172,6 +178,112 @@ export default function SessionHistory() {
     }
   };
 
+
+  const shareSessionResults = async (
+    sessionId: number
+  ) => {
+    try {
+      setSharingSessionId(sessionId);
+
+      const response = await api.post(
+        `/sessions/${sessionId}/share`
+      );
+
+      const token = response.data?.share_token;
+
+      if (!token) {
+        throw new Error(
+          "Le lien de partage n’a pas pu être généré."
+        );
+      }
+
+      const shareUrl =
+        `${window.location.origin}/shared-results/${token}`;
+
+      await navigator.clipboard.writeText(shareUrl);
+
+      setHistory((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          sessions: current.sessions.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  sharing_enabled: true,
+                }
+              : session
+          ),
+        };
+      });
+
+      alert(
+        "Le lien de consultation a été copié. Vous pouvez maintenant l’envoyer à la personne de votre choix."
+      );
+    } catch (error: any) {
+      console.error(error);
+
+      alert(
+        error.response?.data?.message ??
+          error.message ??
+          "Impossible de créer le lien de partage."
+      );
+    } finally {
+      setSharingSessionId(null);
+    }
+  };
+
+  const disableSessionShare = async (
+    sessionId: number
+  ) => {
+    const confirmed = window.confirm(
+      "Désactiver ce lien de partage ? La personne qui possède l’ancien lien ne pourra plus consulter les résultats."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setSharingSessionId(sessionId);
+
+      await api.delete(
+        `/sessions/${sessionId}/share`
+      );
+
+      setHistory((current) => {
+        if (!current) {
+          return current;
+        }
+
+        return {
+          ...current,
+          sessions: current.sessions.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  sharing_enabled: false,
+                }
+              : session
+          ),
+        };
+      });
+
+      alert("Le partage a été désactivé.");
+    } catch (error: any) {
+      console.error(error);
+
+      alert(
+        error.response?.data?.message ??
+          "Impossible de désactiver le partage."
+      );
+    } finally {
+      setSharingSessionId(null);
+    }
+  };
 
   const exportSessionExcel = async (
     sessionId: number,
@@ -401,6 +513,9 @@ export default function SessionHistory() {
                       <TableCell align="center">
                         Résultats
                       </TableCell>
+                      <TableCell align="center">
+                        Partage
+                      </TableCell>
                     </TableRow>
                   </TableHead>
 
@@ -520,6 +635,71 @@ export default function SessionHistory() {
                             </Button>
                           </Box>
                         </TableCell>
+
+                        <TableCell align="center">
+                          <Box
+                            sx={{
+                              display: "flex",
+                              gap: 1,
+                              justifyContent: "center",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              startIcon={
+                                session.sharing_enabled ? (
+                                  <ContentCopy />
+                                ) : (
+                                  <Share />
+                                )
+                              }
+                              onClick={() =>
+                                void shareSessionResults(
+                                  session.id
+                                )
+                              }
+                              disabled={
+                                sharingSessionId ===
+                                session.id
+                              }
+                              sx={{
+                                color: "#071F4A",
+                                borderColor: "#071F4A",
+                                textTransform: "none",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {session.sharing_enabled
+                                ? "Copier le lien"
+                                : "Partager"}
+                            </Button>
+
+                            {session.sharing_enabled && (
+                              <Button
+                                size="small"
+                                color="error"
+                                variant="outlined"
+                                startIcon={<LinkOff />}
+                                onClick={() =>
+                                  void disableSessionShare(
+                                    session.id
+                                  )
+                                }
+                                disabled={
+                                  sharingSessionId ===
+                                  session.id
+                                }
+                                sx={{
+                                  textTransform: "none",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Désactiver
+                              </Button>
+                            )}
+                          </Box>
                       </TableRow>
                     ))}
                   </TableBody>
