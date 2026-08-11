@@ -5,6 +5,7 @@ import {
   Add,
   ArrowBack,
   Edit,
+  History,
   Quiz,
 } from "@mui/icons-material";
 
@@ -267,6 +268,22 @@ export default function ShowQcm() {
                 }}
               >
                 Modifier le QCM
+              </Button>
+
+              <Button
+                variant="outlined"
+                startIcon={<History />}
+                onClick={() =>
+                  navigate(`/qcms/${qcm.id}/sessions`)
+                }
+                sx={{
+                  color: "#071F4A",
+                  borderColor: "#071F4A",
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                Historique des sessions
               </Button>
             </Box>
           </CardContent>

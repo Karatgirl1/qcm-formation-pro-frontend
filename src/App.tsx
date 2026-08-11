@@ -16,6 +16,7 @@ import LaunchSession from "./pages/LaunchSession";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
+import SessionHistory from "./pages/SessionHistory";
 
 
 function ProtectedRoute({
@@ -107,6 +108,14 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/qcms/:id/sessions"
+  element={
+    <ProtectedRoute>
+      <SessionHistory />
+    </ProtectedRoute>
+  }
+/>
 
       <Route
         path="*"
