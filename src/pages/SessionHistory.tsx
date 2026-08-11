@@ -700,6 +700,7 @@ export default function SessionHistory() {
                               </Button>
                             )}
                           </Box>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
