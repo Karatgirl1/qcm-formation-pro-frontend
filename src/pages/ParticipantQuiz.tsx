@@ -392,7 +392,7 @@ export default function ParticipantQuiz() {
                     fontWeight: 700,
                   }}
                 >
-                  seconde{timeLeft > 1 ? "s" : ""}
+                {timeLeft > 1 ? "secondes" : "seconde"}
                 </Typography>
               </Box>
             </Box>
