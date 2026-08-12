@@ -11,6 +11,7 @@ import {
   CircularProgress,
   LinearProgress,
   Radio,
+  TextField,
   Typography,
 } from "@mui/material";
 
@@ -27,11 +28,13 @@ type Question = {
   type:
     | "true_false"
     | "single_choice"
-    | "multiple_choice";
+    | "multiple_choice"
+    | "free_text";
   points: number;
   timer: number | null;
   image?: string | null;
   video?: string | null;
+  answer_count?: number | null;
   answers: Answer[];
 };
 
@@ -59,6 +62,8 @@ export default function ParticipantQuiz() {
     useState(1);
   const [selectedAnswerIds, setSelectedAnswerIds] =
     useState<number[]>([]);
+  const [textAnswers, setTextAnswers] =
+    useState<string[]>([]);
 
   const [timeLeft, setTimeLeft] = useState(30);
   const [loading, setLoading] = useState(true);
@@ -115,6 +120,20 @@ export default function ParticipantQuiz() {
     }
 
     setSelectedAnswerIds([]);
+
+    if (currentQuestion.type === "free_text") {
+      const answerCount = Math.max(
+        1,
+        Number(currentQuestion.answer_count ?? 1)
+      );
+
+      setTextAnswers(
+        Array.from({ length: answerCount }, () => "")
+      );
+    } else {
+      setTextAnswers([]);
+    }
+
     setTimeLeft(
       Math.max(1, Number(currentQuestion.timer ?? 30))
     );
@@ -141,6 +160,17 @@ export default function ParticipantQuiz() {
     setSelectedAnswerIds([answerId]);
   };
 
+  const updateTextAnswer = (
+    index: number,
+    value: string
+  ) => {
+    setTextAnswers((current) =>
+      current.map((answer, currentIndex) =>
+        currentIndex === index ? value : answer
+      )
+    );
+  };
+
   async function submitAnswer(
     timerExpired = false
   ) {
@@ -153,12 +183,26 @@ export default function ParticipantQuiz() {
       return;
     }
 
-    if (
-      selectedAnswerIds.length === 0 &&
-      !timerExpired
-    ) {
-      alert("Sélectionnez une réponse.");
-      return;
+    if (!timerExpired) {
+      if (
+        currentQuestion.type === "free_text" &&
+        textAnswers.some(
+          (answer) => !answer.trim()
+        )
+      ) {
+        alert(
+          "Merci de renseigner toutes les réponses demandées."
+        );
+        return;
+      }
+
+      if (
+        currentQuestion.type !== "free_text" &&
+        selectedAnswerIds.length === 0
+      ) {
+        alert("Sélectionnez une réponse.");
+        return;
+      }
     }
 
     submitLockRef.current = true;
@@ -166,9 +210,21 @@ export default function ParticipantQuiz() {
     try {
       setSubmitting(true);
 
-      // Si le participant a choisi une réponse,
-      // elle est enregistrée avant de continuer.
-      if (selectedAnswerIds.length > 0) {
+      if (currentQuestion.type === "free_text") {
+        const cleanedTextAnswers = textAnswers
+          .map((answer) => answer.trim())
+          .filter((answer) => answer !== "");
+
+        if (cleanedTextAnswers.length > 0) {
+          await api.post(
+            `/public/participants/${participantId}/answers`,
+            {
+              question_id: currentQuestion.id,
+              text_answers: cleanedTextAnswers,
+            }
+          );
+        }
+      } else if (selectedAnswerIds.length > 0) {
         await api.post(
           `/public/participants/${participantId}/answers`,
           {
@@ -425,76 +481,120 @@ export default function ParticipantQuiz() {
             />
 
             <Box>
-              {currentQuestion.answers.map(
-                (answer) => {
-                  const selected =
-                    selectedAnswerIds.includes(
-                      answer.id
-                    );
-
-                  return (
-                    <Box
-                      key={answer.id}
-                      onClick={() =>
-                        selectAnswer(answer.id)
+              {currentQuestion.type === "free_text" ? (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 2,
+                  }}
+                >
+                  {textAnswers.map((answer, index) => (
+                    <TextField
+                      key={index}
+                      fullWidth
+                      required
+                      disabled={submitting}
+                      label={
+                        textAnswers.length > 1
+                          ? `Réponse ${index + 1}`
+                          : "Votre réponse"
                       }
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1,
-                        border: selected
-                          ? "2px solid #071F4A"
-                          : "1px solid #D0D5DD",
-                        bgcolor: selected
-                          ? "#EEF4FF"
-                          : "white",
-                        borderRadius: 2,
-                        p: 1.5,
-                        mb: 2,
-                        cursor: submitting
-                          ? "default"
-                          : "pointer",
-                        opacity: submitting ? 0.7 : 1,
-                      }}
-                    >
-                      {currentQuestion.type ===
-                      "multiple_choice" ? (
-                        <Checkbox
-                          checked={selected}
-                          disabled={submitting}
-                          onClick={(event) =>
-                            event.stopPropagation()
-                          }
-                          onChange={() =>
-                            selectAnswer(answer.id)
-                          }
-                        />
-                      ) : (
-                        <Radio
-                          checked={selected}
-                          disabled={submitting}
-                          onClick={(event) =>
-                            event.stopPropagation()
-                          }
-                          onChange={() =>
-                            selectAnswer(answer.id)
-                          }
-                        />
-                      )}
+                      value={answer}
+                      onChange={(event) =>
+                        updateTextAnswer(
+                          index,
+                          event.target.value
+                        )
+                      }
+                      placeholder="Saisissez votre réponse"
+                    />
+                  ))}
 
-                      <Typography
+                  {textAnswers.length > 1 && (
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "#667085" }}
+                    >
+                      Toutes les réponses doivent être
+                      renseignées.
+                    </Typography>
+                  )}
+                </Box>
+              ) : (
+                currentQuestion.answers.map(
+                  (answer) => {
+                    const selected =
+                      selectedAnswerIds.includes(
+                        answer.id
+                      );
+
+                    return (
+                      <Box
+                        key={answer.id}
+                        onClick={() =>
+                          selectAnswer(answer.id)
+                        }
                         sx={{
-                          color: "#071F4A",
-                          fontWeight: selected
-                            ? 700
-                            : 500,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          border: selected
+                            ? "2px solid #071F4A"
+                            : "1px solid #D0D5DD",
+                          bgcolor: selected
+                            ? "#EEF4FF"
+                            : "white",
+                          borderRadius: 2,
+                          p: 1.5,
+                          mb: 2,
+                          cursor: submitting
+                            ? "default"
+                            : "pointer",
+                          opacity: submitting
+                            ? 0.7
+                            : 1,
                         }}
                       >
-                        {answer.answer}
-                      </Typography>
-                    </Box>
-                  );
-                }
+                        {currentQuestion.type ===
+                        "multiple_choice" ? (
+                          <Checkbox
+                            checked={selected}
+                            disabled={submitting}
+                            onClick={(event) =>
+                              event.stopPropagation()
+                            }
+                            onChange={() =>
+                              selectAnswer(answer.id)
+                            }
+                          />
+                        ) : (
+                          <Radio
+                            checked={selected}
+                            disabled={submitting}
+                            onClick={(event) =>
+                              event.stopPropagation()
+                            }
+                            onChange={() =>
+                              selectAnswer(answer.id)
+                            }
+                          />
+                        )}
+
+                        <Typography
+                          sx={{
+                            color: "#071F4A",
+                            fontWeight: selected
+                              ? 700
+                              : 500,
+                          }}
+                        >
+                          {answer.answer}
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                )
               )}
             </Box>
 

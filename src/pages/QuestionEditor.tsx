@@ -32,7 +32,8 @@ import api from "../api/axios";
 type QuestionType =
   | "true_false"
   | "single_choice"
-  | "multiple_choice";
+  | "multiple_choice"
+  | "free_text";
 
 type AnswerForm = {
   answer: string;
@@ -130,12 +131,20 @@ export default function QuestionEditor() {
         { answer: "Vrai", is_correct: true },
         { answer: "Faux", is_correct: false },
       ]);
-    } else {
-      setAnswers([
-        { answer: "", is_correct: false },
-        { answer: "", is_correct: false },
-      ]);
+      return;
     }
+
+    if (newType === "free_text") {
+      setAnswers([
+        { answer: "", is_correct: true },
+      ]);
+      return;
+    }
+
+    setAnswers([
+      { answer: "", is_correct: false },
+      { answer: "", is_correct: false },
+    ]);
   };
 
   const updateAnswerText = (
@@ -197,9 +206,14 @@ export default function QuestionEditor() {
   };
 
   const removeAnswer = (index: number) => {
-    if (answers.length <= 2) {
+    const minimumAnswers =
+      type === "free_text" ? 1 : 2;
+
+    if (answers.length <= minimumAnswers) {
       alert(
-        "Une question doit contenir au moins deux réponses."
+        type === "free_text"
+          ? "Une question à réponse libre doit contenir au moins une réponse attendue."
+          : "Une question doit contenir au moins deux réponses."
       );
       return;
     }
@@ -254,7 +268,20 @@ export default function QuestionEditor() {
       return false;
     }
 
-    if (answers.length < 2) {
+    if (
+      type === "free_text" &&
+      answers.length < 1
+    ) {
+      alert(
+        "Ajoutez au moins une réponse attendue."
+      );
+      return false;
+    }
+
+    if (
+      type !== "free_text" &&
+      answers.length < 2
+    ) {
       alert(
         "Une question doit contenir au moins deux réponses."
       );
@@ -266,24 +293,26 @@ export default function QuestionEditor() {
       return false;
     }
 
-    const correctAnswers = answers.filter(
-      (answer) => answer.is_correct
-    );
-
-    if (correctAnswers.length === 0) {
-      alert("Sélectionnez au moins une bonne réponse.");
-      return false;
-    }
-
-    if (
-      (type === "single_choice" ||
-        type === "true_false") &&
-      correctAnswers.length !== 1
-    ) {
-      alert(
-        "Ce type de question doit avoir exactement une bonne réponse."
+    if (type !== "free_text") {
+      const correctAnswers = answers.filter(
+        (answer) => answer.is_correct
       );
-      return false;
+
+      if (correctAnswers.length === 0) {
+        alert("Sélectionnez au moins une bonne réponse.");
+        return false;
+      }
+
+      if (
+        (type === "single_choice" ||
+          type === "true_false") &&
+        correctAnswers.length !== 1
+      ) {
+        alert(
+          "Ce type de question doit avoir exactement une bonne réponse."
+        );
+        return false;
+      }
     }
 
     return true;
@@ -309,7 +338,10 @@ export default function QuestionEditor() {
 
       answers: answers.map((answer, index) => ({
         answer: answer.answer.trim(),
-        is_correct: answer.is_correct,
+        is_correct:
+          type === "free_text"
+            ? true
+            : answer.is_correct,
         order: index + 1,
       })),
     };
@@ -410,6 +442,10 @@ export default function QuestionEditor() {
 
     if (questionType === "multiple_choice") {
       return "Choix multiples";
+    }
+
+    if (questionType === "free_text") {
+      return "Réponse libre";
     }
 
     return "Choix unique";
@@ -536,6 +572,10 @@ export default function QuestionEditor() {
                     <MenuItem value="multiple_choice">
                       Choix multiples
                     </MenuItem>
+
+                    <MenuItem value="free_text">
+                      Réponse libre
+                    </MenuItem>
                   </Select>
                 </FormControl>
 
@@ -577,11 +617,22 @@ export default function QuestionEditor() {
                 sx={{
                   color: "#071F4A",
                   fontWeight: 700,
-                  mb: 2,
+                  mb: 1,
                 }}
               >
-                Réponses
+                {type === "free_text"
+                  ? "Réponse(s) attendue(s)"
+                  : "Réponses"}
               </Typography>
+
+              {type === "free_text" && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Ajoutez une ou plusieurs réponses attendues.
+                  Le participant devra toutes les saisir
+                  correctement pour obtenir les points de la
+                  question. Une seule erreur donnera 0 point.
+                </Alert>
+              )}
 
               {answers.map((answer, index) => (
                 <Box
@@ -593,26 +644,31 @@ export default function QuestionEditor() {
                     mb: 2,
                   }}
                 >
-                  {type === "multiple_choice" ? (
-                    <Checkbox
-                      checked={answer.is_correct}
-                      onChange={() =>
-                        toggleCorrectAnswer(index)
-                      }
-                    />
-                  ) : (
-                    <Radio
-                      checked={answer.is_correct}
-                      onChange={() =>
-                        toggleCorrectAnswer(index)
-                      }
-                    />
-                  )}
+                  {type !== "free_text" &&
+                    (type === "multiple_choice" ? (
+                      <Checkbox
+                        checked={answer.is_correct}
+                        onChange={() =>
+                          toggleCorrectAnswer(index)
+                        }
+                      />
+                    ) : (
+                      <Radio
+                        checked={answer.is_correct}
+                        onChange={() =>
+                          toggleCorrectAnswer(index)
+                        }
+                      />
+                    ))}
 
                   <TextField
                     fullWidth
                     required
-                    label={`Réponse ${index + 1}`}
+                    label={
+                      type === "free_text"
+                        ? `Réponse attendue ${index + 1}`
+                        : `Réponse ${index + 1}`
+                    }
                     value={answer.answer}
                     disabled={type === "true_false"}
                     onChange={(event) =>
@@ -647,7 +703,9 @@ export default function QuestionEditor() {
                     fontWeight: 700,
                   }}
                 >
-                  Ajouter une réponse
+                  {type === "free_text"
+                    ? "Ajouter une réponse attendue"
+                    : "Ajouter une réponse"}
                 </Button>
               )}
 
