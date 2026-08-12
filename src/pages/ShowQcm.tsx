@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   Add,
   ArrowBack,
+  ContentCopy,
   Edit,
   History,
   Quiz,
@@ -56,6 +57,7 @@ export default function ShowQcm() {
   const [qcm, setQcm] = useState<Qcm | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     const loadQcm = async () => {
@@ -80,6 +82,40 @@ export default function ShowQcm() {
 
     loadQcm();
   }, [id]);
+
+  const duplicateQcm = async () => {
+    if (!qcm || duplicating) {
+      return;
+    }
+
+    try {
+      setDuplicating(true);
+
+      const response = await api.post(
+        `/qcms/${qcm.id}/duplicate`
+      );
+
+      const newQcmId = response.data?.id;
+
+      if (!newQcmId) {
+        throw new Error(
+          "La copie du QCM n’a pas pu être créée."
+        );
+      }
+
+      navigate(`/qcms/${newQcmId}/edit`);
+    } catch (error: any) {
+      console.error("Erreur duplication QCM :", error);
+
+      alert(
+        error.response?.data?.message ??
+          error.message ??
+          "Impossible de dupliquer ce QCM."
+      );
+    } finally {
+      setDuplicating(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -268,6 +304,23 @@ export default function ShowQcm() {
                 }}
               >
                 Modifier le QCM
+              </Button>
+
+              <Button
+                variant="outlined"
+                startIcon={<ContentCopy />}
+                onClick={() => void duplicateQcm()}
+                disabled={duplicating}
+                sx={{
+                  color: "#071F4A",
+                  borderColor: "#071F4A",
+                  textTransform: "none",
+                  fontWeight: 700,
+                }}
+              >
+                {duplicating
+                  ? "Duplication..."
+                  : "Dupliquer le QCM"}
               </Button>
 
               <Button
