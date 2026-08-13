@@ -12,13 +12,13 @@ import CreateQcm from "./pages/CreateQcm";
 import ShowQcm from "./pages/ShowQcm";
 import EditQcm from "./pages/EditQcm";
 import QuestionEditor from "./pages/QuestionEditor";
+import ImportWordQuestions from "./pages/ImportWordQuestions";
 import LaunchSession from "./pages/LaunchSession";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
 import SessionHistory from "./pages/SessionHistory";
 import SharedResults from "./pages/SharedResults";
-
 
 function ProtectedRoute({
   children,
@@ -49,15 +49,16 @@ function App() {
         path="/play/:code"
         element={<ParticipantQuiz />}
       />
-      <Route
-  path="/shared-results/:token"
-  element={<SharedResults />}
-/>
 
-     <Route
-  path="/participant/finished"
-  element={<ParticipantFinished />}
-/>
+      <Route
+        path="/shared-results/:token"
+        element={<SharedResults />}
+      />
+
+      <Route
+        path="/participant/finished"
+        element={<ParticipantFinished />}
+      />
 
       {/* Routes formateur protégées */}
       <Route
@@ -106,6 +107,15 @@ function App() {
       />
 
       <Route
+        path="/qcms/:id/questions/import-word"
+        element={
+          <ProtectedRoute>
+            <ImportWordQuestions />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/qcms/:id/launch"
         element={
           <ProtectedRoute>
@@ -113,14 +123,15 @@ function App() {
           </ProtectedRoute>
         }
       />
+
       <Route
-  path="/qcms/:id/sessions"
-  element={
-    <ProtectedRoute>
-      <SessionHistory />
-    </ProtectedRoute>
-  }
-/>
+        path="/qcms/:id/sessions"
+        element={
+          <ProtectedRoute>
+            <SessionHistory />
+          </ProtectedRoute>
+        }
+      />
 
       <Route
         path="*"

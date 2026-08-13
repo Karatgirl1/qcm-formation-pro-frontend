@@ -8,6 +8,7 @@ import {
   Edit,
   History,
   Quiz,
+  UploadFile,
 } from "@mui/icons-material";
 
 import {
@@ -288,6 +289,29 @@ export default function ShowQcm() {
                 }}
               >
                 Ajouter une question
+              </Button>
+
+              <Button
+                variant="outlined"
+                startIcon={<UploadFile />}
+                onClick={() =>
+                  navigate(
+                    `/qcms/${qcm.id}/questions/import-word`
+                  )
+                }
+                sx={{
+                  color: "#E3062C",
+                  borderColor: "#E3062C",
+                  textTransform: "none",
+                  fontWeight: 700,
+
+                  "&:hover": {
+                    borderColor: "#C80527",
+                    bgcolor: "rgba(227, 6, 44, 0.04)",
+                  },
+                }}
+              >
+                Importer depuis Word
               </Button>
 
               <Button
