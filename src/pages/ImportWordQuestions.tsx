@@ -39,7 +39,7 @@ export default function ImportWordQuestions() {
   const [questions, setQuestions] =
     useState<PreviewQuestion[]>([]);
   const [points, setPoints] = useState(1);
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(20);
 
   const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);

@@ -72,7 +72,7 @@ export default function QuestionEditor() {
   const [type, setType] =
     useState<QuestionType>("single_choice");
   const [points, setPoints] = useState(1);
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(20);
   const [explanation, setExplanation] = useState("");
 
   const [answers, setAnswers] = useState<AnswerForm[]>([
@@ -114,7 +114,7 @@ export default function QuestionEditor() {
     setQuestionText("");
     setType("single_choice");
     setPoints(1);
-    setTimer(30);
+    setTimer(20);
     setExplanation("");
 
     setAnswers([
@@ -230,7 +230,7 @@ export default function QuestionEditor() {
     setQuestionText(question.question);
     setType(question.type);
     setPoints(question.points);
-    setTimer(question.timer ?? 30);
+    setTimer(question.timer ?? 20);
     setExplanation(question.explanation ?? "");
 
     setAnswers(
