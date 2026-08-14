@@ -63,7 +63,6 @@ export default function Dashboard() {
 
   const topRef = useRef<HTMLDivElement | null>(null);
   const qcmsRef = useRef<HTMLDivElement | null>(null);
-  const participantsRef = useRef<HTMLDivElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -199,17 +198,6 @@ export default function Dashboard() {
             </ListItemButton>
 
             <ListItemButton
-              onClick={() => scrollTo(participantsRef)}
-              sx={{ borderRadius: 2 }}
-            >
-              <ListItemIcon sx={{ color: "white" }}>
-                <Groups />
-              </ListItemIcon>
-
-              <ListItemText primary="Participants" />
-            </ListItemButton>
-
-            <ListItemButton
               onClick={() => scrollTo(resultsRef)}
               sx={{ borderRadius: 2 }}
             >
@@ -324,17 +312,15 @@ export default function Dashboard() {
               color="#071F4A"
             />
 
-            <Box ref={participantsRef}>
-              <StatCard
-                title="Participants"
-                value={String(
-                  statistics.participants_count
-                )}
-                subtitle="Participations totales"
-                icon={<Groups />}
-                color="#E3062C"
-              />
-            </Box>
+            <StatCard
+              title="Participants"
+              value={String(
+                statistics.participants_count
+              )}
+              subtitle="Participations totales"
+              icon={<Groups />}
+              color="#E3062C"
+            />
 
             <Box ref={resultsRef}>
               <StatCard
