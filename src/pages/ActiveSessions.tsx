@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import {
   ArrowBack,
+  ContentCopy,
   Delete,
   OpenInNew,
 } from "@mui/icons-material";
@@ -15,8 +16,11 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  TextField,
   Typography,
 } from "@mui/material";
+
+import { QRCodeSVG } from "qrcode.react";
 
 import api from "../api/axios";
 
@@ -38,6 +42,8 @@ export default function ActiveSessions() {
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] =
+    useState<number | null>(null);
+  const [copiedSessionId, setCopiedSessionId] =
     useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -63,6 +69,32 @@ export default function ActiveSessions() {
   useEffect(() => {
     void loadSessions();
   }, []);
+
+  const getParticipantUrl = (code: string) =>
+    `${window.location.origin}/join/${code}`;
+
+  const copyParticipantLink = async (
+    session: ActiveSession
+  ) => {
+    const participantUrl = getParticipantUrl(session.code);
+
+    try {
+      await navigator.clipboard.writeText(participantUrl);
+
+      setCopiedSessionId(session.id);
+
+      window.setTimeout(() => {
+        setCopiedSessionId((current) =>
+          current === session.id ? null : current
+        );
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      alert(
+        "Impossible de copier automatiquement le lien. Vous pouvez le sélectionner manuellement."
+      );
+    }
+  };
 
   const deleteSession = async (session: ActiveSession) => {
     const confirmed = window.confirm(
@@ -132,7 +164,8 @@ export default function ActiveSessions() {
             mb: 4,
           }}
         >
-          Retrouvez ici toutes les sessions actuellement ouvertes.
+          Retrouvez ici toutes les sessions actuellement ouvertes,
+          leur QR code et le lien à transmettre aux participants.
         </Typography>
 
         {errorMessage && (
@@ -154,114 +187,215 @@ export default function ActiveSessions() {
             sx={{
               display: "flex",
               flexDirection: "column",
-              gap: 2,
+              gap: 3,
             }}
           >
-            {sessions.map((session) => (
-              <Card
-                key={session.id}
-                sx={{
-                  borderRadius: 3,
-                  boxShadow:
-                    "0 6px 25px rgba(7,31,74,0.08)",
-                }}
-              >
-                <CardContent sx={{ p: 3 }}>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      gap: 2,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color: "#071F4A",
-                          fontWeight: 800,
-                        }}
-                      >
-                        {session.qcm.title}
-                      </Typography>
+            {sessions.map((session) => {
+              const participantUrl =
+                getParticipantUrl(session.code);
+
+              return (
+                <Card
+                  key={session.id}
+                  sx={{
+                    borderRadius: 3,
+                    boxShadow:
+                      "0 6px 25px rgba(7,31,74,0.08)",
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: 2,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Box sx={{ flex: 1, minWidth: 240 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: "#071F4A",
+                            fontWeight: 800,
+                          }}
+                        >
+                          {session.qcm.title}
+                        </Typography>
+
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 1,
+                            flexWrap: "wrap",
+                            mt: 1.5,
+                          }}
+                        >
+                          <Chip
+                            label={`Code : ${session.code}`}
+                            variant="outlined"
+                          />
+
+                          <Chip
+                            label={`${session.participants_count} participant${
+                              session.participants_count > 1
+                                ? "s"
+                                : ""
+                            }`}
+                          />
+
+                          <Chip
+                            label="En cours"
+                            color="success"
+                          />
+                        </Box>
+                      </Box>
 
                       <Box
                         sx={{
                           display: "flex",
                           gap: 1,
                           flexWrap: "wrap",
-                          mt: 1.5,
                         }}
                       >
-                        <Chip
-                          label={`Code : ${session.code}`}
+                        <Button
                           variant="outlined"
-                        />
+                          startIcon={<OpenInNew />}
+                          onClick={() =>
+                            navigate(
+                              `/qcms/${session.qcm.id}/sessions`
+                            )
+                          }
+                          sx={{
+                            color: "#071F4A",
+                            borderColor: "#071F4A",
+                            textTransform: "none",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Voir
+                        </Button>
 
-                        <Chip
-                          label={`${session.participants_count} participant${
-                            session.participants_count > 1
-                              ? "s"
-                              : ""
-                          }`}
-                        />
-
-                        <Chip
-                          label="En cours"
-                          color="success"
-                        />
+                        <Button
+                          color="error"
+                          variant="outlined"
+                          startIcon={<Delete />}
+                          disabled={deletingId === session.id}
+                          onClick={() =>
+                            void deleteSession(session)
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {deletingId === session.id
+                            ? "Suppression..."
+                            : "Supprimer"}
+                        </Button>
                       </Box>
                     </Box>
 
                     <Box
                       sx={{
-                        display: "flex",
-                        gap: 1,
-                        flexWrap: "wrap",
+                        mt: 3,
+                        pt: 3,
+                        borderTop: "1px solid #E4E7EC",
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          md: "220px 1fr",
+                        },
+                        gap: 3,
+                        alignItems: "center",
                       }}
                     >
-                      <Button
-                        variant="outlined"
-                        startIcon={<OpenInNew />}
-                        onClick={() =>
-                          navigate(
-                            `/qcms/${session.qcm.id}/sessions`
-                          )
-                        }
+                      <Box
                         sx={{
-                          color: "#071F4A",
-                          borderColor: "#071F4A",
-                          textTransform: "none",
-                          fontWeight: 700,
+                          display: "flex",
+                          justifyContent: {
+                            xs: "center",
+                            md: "flex-start",
+                          },
                         }}
                       >
-                        Voir
-                      </Button>
+                        <Box
+                          sx={{
+                            bgcolor: "white",
+                            p: 2,
+                            borderRadius: 2,
+                            border: "1px solid #E4E7EC",
+                          }}
+                        >
+                          <QRCodeSVG
+                            value={participantUrl}
+                            size={180}
+                            level="M"
+                            marginSize={2}
+                          />
+                        </Box>
+                      </Box>
 
-                      <Button
-                        color="error"
-                        variant="outlined"
-                        startIcon={<Delete />}
-                        disabled={deletingId === session.id}
-                        onClick={() =>
-                          void deleteSession(session)
-                        }
-                        sx={{
-                          textTransform: "none",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {deletingId === session.id
-                          ? "Suppression..."
-                          : "Supprimer"}
-                      </Button>
+                      <Box>
+                        <Typography
+                          sx={{
+                            color: "#071F4A",
+                            fontWeight: 800,
+                            mb: 1,
+                          }}
+                        >
+                          Lien participant
+                        </Typography>
+
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: "#667085",
+                            mb: 2,
+                          }}
+                        >
+                          Les participants peuvent scanner le QR code
+                          ou utiliser ce lien pour rejoindre directement
+                          la session.
+                        </Typography>
+
+                        <TextField
+                          fullWidth
+                          value={participantUrl}
+                          slotProps={{
+                            htmlInput: {
+                              readOnly: true,
+                            },
+                          }}
+                          sx={{ mb: 1.5 }}
+                        />
+
+                        <Button
+                          variant="contained"
+                          startIcon={<ContentCopy />}
+                          onClick={() =>
+                            void copyParticipantLink(session)
+                          }
+                          sx={{
+                            bgcolor: "#E3062C",
+                            textTransform: "none",
+                            fontWeight: 800,
+                            "&:hover": {
+                              bgcolor: "#C80527",
+                            },
+                          }}
+                        >
+                          {copiedSessionId === session.id
+                            ? "Lien copié"
+                            : "Copier le lien"}
+                        </Button>
+                      </Box>
                     </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </Box>
         )}
       </Box>
