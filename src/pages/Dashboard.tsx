@@ -62,7 +62,6 @@ export default function Dashboard() {
 
   const topRef = useRef<HTMLDivElement | null>(null);
   const qcmsRef = useRef<HTMLDivElement | null>(null);
-  const resultsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     void loadDashboard();
@@ -197,7 +196,7 @@ export default function Dashboard() {
             </ListItemButton>
 
             <ListItemButton
-              onClick={() => scrollTo(resultsRef)}
+              onClick={() => navigate("/results")}
               sx={{ borderRadius: 2 }}
             >
               <ListItemIcon sx={{ color: "white" }}>
@@ -311,7 +310,16 @@ export default function Dashboard() {
               color="#071F4A"
             />
 
-            <Box ref={resultsRef}>
+            <Box
+              onClick={() => navigate("/results")}
+              sx={{
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                },
+              }}
+            >
               <StatCard
                 title="Résultat moyen"
                 value={
@@ -321,8 +329,8 @@ export default function Dashboard() {
                 }
                 subtitle={
                   statistics.average_result === null
-                    ? "Aucun résultat"
-                    : "Moyenne des QCM terminés"
+                    ? "Cliquez pour consulter les résultats"
+                    : "Cliquez pour consulter les résultats"
                 }
                 icon={<Assessment />}
                 color="#071F4A"

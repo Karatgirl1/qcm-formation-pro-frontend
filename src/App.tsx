@@ -15,6 +15,7 @@ import QuestionEditor from "./pages/QuestionEditor";
 import ImportWordQuestions from "./pages/ImportWordQuestions";
 import LaunchSession from "./pages/LaunchSession";
 import ActiveSessions from "./pages/ActiveSessions";
+import Results from "./pages/Results";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
@@ -76,6 +77,15 @@ function App() {
         element={
           <ProtectedRoute>
             <ActiveSessions />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/results"
+        element={
+          <ProtectedRoute>
+            <Results />
           </ProtectedRoute>
         }
       />
