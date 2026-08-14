@@ -14,6 +14,7 @@ import EditQcm from "./pages/EditQcm";
 import QuestionEditor from "./pages/QuestionEditor";
 import ImportWordQuestions from "./pages/ImportWordQuestions";
 import LaunchSession from "./pages/LaunchSession";
+import ActiveSessions from "./pages/ActiveSessions";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
@@ -66,6 +67,15 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/sessions/active"
+        element={
+          <ProtectedRoute>
+            <ActiveSessions />
           </ProtectedRoute>
         }
       />

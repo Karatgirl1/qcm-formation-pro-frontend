@@ -8,7 +8,6 @@ import {
   Add,
   Assessment,
   Dashboard as DashboardIcon,
-  Groups,
   Home,
   Logout,
   Quiz,
@@ -299,7 +298,7 @@ export default function Dashboard() {
               gridTemplateColumns: {
                 xs: "1fr",
                 sm: "repeat(2, 1fr)",
-                xl: "repeat(4, 1fr)",
+                xl: "repeat(3, 1fr)",
               },
               gap: 3,
             }}
@@ -310,16 +309,6 @@ export default function Dashboard() {
               subtitle="QCM créés"
               icon={<Quiz />}
               color="#071F4A"
-            />
-
-            <StatCard
-              title="Participants"
-              value={String(
-                statistics.participants_count
-              )}
-              subtitle="Participations totales"
-              icon={<Groups />}
-              color="#E3062C"
             />
 
             <Box ref={resultsRef}>
@@ -340,15 +329,26 @@ export default function Dashboard() {
               />
             </Box>
 
-            <StatCard
-              title="Sessions actives"
-              value={String(
-                statistics.active_sessions_count
-              )}
-              subtitle="Sessions en cours"
-              icon={<DashboardIcon />}
-              color="#E3062C"
-            />
+            <Box
+              onClick={() => navigate("/sessions/active")}
+              sx={{
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+                "&:hover": {
+                  transform: "translateY(-2px)",
+                },
+              }}
+            >
+              <StatCard
+                title="Sessions actives"
+                value={String(
+                  statistics.active_sessions_count
+                )}
+                subtitle="Cliquez pour gérer les sessions en cours"
+                icon={<DashboardIcon />}
+                color="#E3062C"
+              />
+            </Box>
           </Box>
 
           {/* Zone des QCM */}
