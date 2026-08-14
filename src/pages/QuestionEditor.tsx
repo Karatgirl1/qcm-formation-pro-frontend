@@ -33,17 +33,22 @@ type QuestionType =
   | "true_false"
   | "single_choice"
   | "multiple_choice"
-  | "free_text";
+  | "free_text"
+  | "competency_scale";
 
 type AnswerForm = {
   answer: string;
   is_correct: boolean;
+  points_min?: number | null;
+  points_max?: number | null;
 };
 
 type Answer = {
   id: number;
   answer: string;
   is_correct: boolean;
+  points_min?: number | null;
+  points_max?: number | null;
 };
 
 type Question = {
@@ -141,6 +146,37 @@ export default function QuestionEditor() {
       return;
     }
 
+    if (newType === "competency_scale") {
+      setPoints(10);
+      setAnswers([
+        {
+          answer: "A - Maîtrisé",
+          is_correct: false,
+          points_min: 8,
+          points_max: 10,
+        },
+        {
+          answer: "B - Partiellement maîtrisé",
+          is_correct: false,
+          points_min: 5,
+          points_max: 7,
+        },
+        {
+          answer: "C - En cours d’acquisition",
+          is_correct: false,
+          points_min: 2,
+          points_max: 4,
+        },
+        {
+          answer: "D - Non acquis",
+          is_correct: false,
+          points_min: 0,
+          points_max: 1,
+        },
+      ]);
+      return;
+    }
+
     setAnswers([
       { answer: "", is_correct: false },
       { answer: "", is_correct: false },
@@ -157,6 +193,23 @@ export default function QuestionEditor() {
           ? {
               ...answer,
               answer: value,
+            }
+          : answer
+      )
+    );
+  };
+
+  const updateAnswerPoints = (
+    index: number,
+    field: "points_min" | "points_max",
+    value: number
+  ) => {
+    setAnswers((currentAnswers) =>
+      currentAnswers.map((answer, currentIndex) =>
+        currentIndex === index
+          ? {
+              ...answer,
+              [field]: value,
             }
           : answer
       )
@@ -201,6 +254,9 @@ export default function QuestionEditor() {
       {
         answer: "",
         is_correct: false,
+        ...(type === "competency_scale"
+          ? { points_min: 0, points_max: 0 }
+          : {}),
       },
     ]);
   };
@@ -237,6 +293,8 @@ export default function QuestionEditor() {
       question.answers.map((answer) => ({
         answer: answer.answer,
         is_correct: answer.is_correct,
+        points_min: answer.points_min ?? null,
+        points_max: answer.points_max ?? null,
       }))
     );
 
@@ -293,7 +351,10 @@ export default function QuestionEditor() {
       return false;
     }
 
-    if (type !== "free_text") {
+    if (
+      type !== "free_text" &&
+      type !== "competency_scale"
+    ) {
       const correctAnswers = answers.filter(
         (answer) => answer.is_correct
       );
@@ -312,6 +373,29 @@ export default function QuestionEditor() {
           "Ce type de question doit avoir exactement une bonne réponse."
         );
         return false;
+      }
+    }
+
+    if (type === "competency_scale") {
+      for (const answer of answers) {
+        if (
+          answer.points_min === null ||
+          answer.points_min === undefined ||
+          answer.points_max === null ||
+          answer.points_max === undefined
+        ) {
+          alert(
+            "Indiquez les points minimum et maximum pour chaque niveau."
+          );
+          return false;
+        }
+
+        if (answer.points_min > answer.points_max) {
+          alert(
+            "Pour chaque niveau, le maximum doit être supérieur ou égal au minimum."
+          );
+          return false;
+        }
       }
     }
 
@@ -341,7 +425,17 @@ export default function QuestionEditor() {
         is_correct:
           type === "free_text"
             ? true
-            : answer.is_correct,
+            : type === "competency_scale"
+              ? false
+              : answer.is_correct,
+        points_min:
+          type === "competency_scale"
+            ? answer.points_min
+            : null,
+        points_max:
+          type === "competency_scale"
+            ? answer.points_max
+            : null,
         order: index + 1,
       })),
     };
@@ -446,6 +540,10 @@ export default function QuestionEditor() {
 
     if (questionType === "free_text") {
       return "Réponse libre";
+    }
+
+    if (questionType === "competency_scale") {
+      return "Évaluation de compétence";
     }
 
     return "Choix unique";
@@ -576,6 +674,10 @@ export default function QuestionEditor() {
                     <MenuItem value="free_text">
                       Réponse libre
                     </MenuItem>
+
+                    <MenuItem value="competency_scale">
+                      Évaluation de compétence
+                    </MenuItem>
                   </Select>
                 </FormControl>
 
@@ -645,6 +747,7 @@ export default function QuestionEditor() {
                   }}
                 >
                   {type !== "free_text" &&
+                    type !== "competency_scale" &&
                     (type === "multiple_choice" ? (
                       <Checkbox
                         checked={answer.is_correct}
@@ -678,6 +781,44 @@ export default function QuestionEditor() {
                       )
                     }
                   />
+
+                  {type === "competency_scale" && (
+                    <>
+                      <TextField
+                        type="number"
+                        label="Minimum"
+                        value={answer.points_min ?? 0}
+                        onChange={(event) =>
+                          updateAnswerPoints(
+                            index,
+                            "points_min",
+                            Number(event.target.value)
+                          )
+                        }
+                        slotProps={{
+                          htmlInput: { min: 0, max: 1000 },
+                        }}
+                        sx={{ width: 120 }}
+                      />
+
+                      <TextField
+                        type="number"
+                        label="Maximum"
+                        value={answer.points_max ?? 0}
+                        onChange={(event) =>
+                          updateAnswerPoints(
+                            index,
+                            "points_max",
+                            Number(event.target.value)
+                          )
+                        }
+                        slotProps={{
+                          htmlInput: { min: 0, max: 1000 },
+                        }}
+                        sx={{ width: 120 }}
+                      />
+                    </>
+                  )}
 
                   {type !== "true_false" && (
                     <Button
@@ -910,26 +1051,42 @@ export default function QuestionEditor() {
                         px: 1.5,
                         py: 1,
                         borderRadius: 1.5,
-                        bgcolor: answer.is_correct
-                          ? "#ECFDF3"
-                          : "#F8FAFC",
-                        border: answer.is_correct
-                          ? "1px solid #ABEFC6"
-                          : "1px solid #E4E7EC",
+                        bgcolor:
+                          question.type !== "competency_scale" &&
+                          answer.is_correct
+                            ? "#ECFDF3"
+                            : "#F8FAFC",
+                        border:
+                          question.type !== "competency_scale" &&
+                          answer.is_correct
+                            ? "1px solid #ABEFC6"
+                            : "1px solid #E4E7EC",
                       }}
                     >
                       <Typography
                         sx={{
-                          fontWeight: answer.is_correct
-                            ? 700
-                            : 400,
-                          color: answer.is_correct
-                            ? "#027A48"
-                            : "#344054",
+                          fontWeight:
+                            question.type === "competency_scale" ||
+                            answer.is_correct
+                              ? 700
+                              : 400,
+                          color:
+                            question.type !== "competency_scale" &&
+                            answer.is_correct
+                              ? "#027A48"
+                              : "#344054",
                         }}
                       >
-                        {answer.is_correct ? "✓" : "•"}{" "}
+                        {question.type === "competency_scale"
+                          ? "•"
+                          : answer.is_correct
+                            ? "✓"
+                            : "•"}{" "}
                         {answer.answer}
+                        {question.type === "competency_scale" &&
+                          ` — ${answer.points_min ?? 0} à ${
+                            answer.points_max ?? 0
+                          } pts`}
                       </Typography>
                     </Box>
                   ))}

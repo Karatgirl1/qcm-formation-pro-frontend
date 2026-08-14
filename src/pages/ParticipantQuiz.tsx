@@ -10,7 +10,11 @@ import {
   Checkbox,
   CircularProgress,
   LinearProgress,
+  FormControl,
+  InputLabel,
+  MenuItem,
   Radio,
+  Select,
   TextField,
   Typography,
 } from "@mui/material";
@@ -20,6 +24,8 @@ import api from "../api/axios";
 type Answer = {
   id: number;
   answer: string;
+  points_min?: number | null;
+  points_max?: number | null;
 };
 
 type Question = {
@@ -29,7 +35,8 @@ type Question = {
     | "true_false"
     | "single_choice"
     | "multiple_choice"
-    | "free_text";
+    | "free_text"
+    | "competency_scale";
   points: number;
   timer: number | null;
   image?: string | null;
@@ -64,6 +71,8 @@ export default function ParticipantQuiz() {
     useState<number[]>([]);
   const [textAnswers, setTextAnswers] =
     useState<string[]>([]);
+  const [awardedPoints, setAwardedPoints] =
+    useState<number | "">("");
 
   const [timeLeft, setTimeLeft] = useState(30);
   const [loading, setLoading] = useState(true);
@@ -120,6 +129,7 @@ export default function ParticipantQuiz() {
     }
 
     setSelectedAnswerIds([]);
+    setAwardedPoints("");
 
     if (currentQuestion.type === "free_text") {
       const answerCount = Math.max(
@@ -197,7 +207,24 @@ export default function ParticipantQuiz() {
       }
 
       if (
+        currentQuestion.type === "competency_scale" &&
+        selectedAnswerIds.length === 0
+      ) {
+        alert("Sélectionnez un niveau de compétence.");
+        return;
+      }
+
+      if (
+        currentQuestion.type === "competency_scale" &&
+        awardedPoints === ""
+      ) {
+        alert("Sélectionnez le nombre de points à attribuer.");
+        return;
+      }
+
+      if (
         currentQuestion.type !== "free_text" &&
+        currentQuestion.type !== "competency_scale" &&
         selectedAnswerIds.length === 0
       ) {
         alert("Sélectionnez une réponse.");
@@ -224,6 +251,19 @@ export default function ParticipantQuiz() {
             }
           );
         }
+      } else if (
+        currentQuestion.type === "competency_scale" &&
+        selectedAnswerIds.length > 0 &&
+        awardedPoints !== ""
+      ) {
+        await api.post(
+          `/public/participants/${participantId}/answers`,
+          {
+            question_id: currentQuestion.id,
+            selected_answer_ids: selectedAnswerIds,
+            awarded_points: awardedPoints,
+          }
+        );
       } else if (selectedAnswerIds.length > 0) {
         await api.post(
           `/public/participants/${participantId}/answers`,
@@ -520,6 +560,111 @@ export default function ParticipantQuiz() {
                       renseignées.
                     </Typography>
                   )}
+                </Box>
+              ) : currentQuestion.type === "competency_scale" ? (
+                <Box>
+                  {currentQuestion.answers.map((answer) => {
+                    const selected =
+                      selectedAnswerIds.includes(answer.id);
+
+                    const min = Number(answer.points_min ?? 0);
+                    const max = Number(answer.points_max ?? min);
+                    const pointOptions = Array.from(
+                      { length: Math.max(0, max - min + 1) },
+                      (_, index) => min + index
+                    );
+
+                    return (
+                      <Box
+                        key={answer.id}
+                        sx={{
+                          border: selected
+                            ? "2px solid #071F4A"
+                            : "1px solid #D0D5DD",
+                          bgcolor: selected
+                            ? "#EEF4FF"
+                            : "white",
+                          borderRadius: 2,
+                          p: 2,
+                          mb: 2,
+                        }}
+                      >
+                        <Box
+                          onClick={() => {
+                            selectAnswer(answer.id);
+                            setAwardedPoints("");
+                          }}
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            cursor: submitting
+                              ? "default"
+                              : "pointer",
+                          }}
+                        >
+                          <Radio
+                            checked={selected}
+                            disabled={submitting}
+                            onChange={() => {
+                              selectAnswer(answer.id);
+                              setAwardedPoints("");
+                            }}
+                          />
+
+                          <Box sx={{ flex: 1 }}>
+                            <Typography
+                              sx={{
+                                color: "#071F4A",
+                                fontWeight: selected ? 800 : 600,
+                              }}
+                            >
+                              {answer.answer}
+                            </Typography>
+
+                            <Typography
+                              variant="body2"
+                              sx={{ color: "#667085" }}
+                            >
+                              De {min} à {max} points
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        {selected && (
+                          <FormControl
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            disabled={submitting}
+                          >
+                            <InputLabel>
+                              Points attribués
+                            </InputLabel>
+
+                            <Select
+                              label="Points attribués"
+                              value={awardedPoints}
+                              onChange={(event) =>
+                                setAwardedPoints(
+                                  Number(event.target.value)
+                                )
+                              }
+                            >
+                              {pointOptions.map((point) => (
+                                <MenuItem
+                                  key={point}
+                                  value={point}
+                                >
+                                  {point} point
+                                  {point > 1 ? "s" : ""}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        )}
+                      </Box>
+                    );
+                  })}
                 </Box>
               ) : (
                 currentQuestion.answers.map(
