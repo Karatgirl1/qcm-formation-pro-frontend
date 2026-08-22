@@ -31,6 +31,7 @@ export default function CreateQcm() {
   const [duration, setDuration] = useState(20);
   const [mode, setMode] = useState("exam");
   const [isPublished, setIsPublished] = useState(false);
+  const [randomQuestions, setRandomQuestions] = useState(false);
 
   const [opensAt, setOpensAt] = useState("");
 
@@ -55,6 +56,7 @@ export default function CreateQcm() {
         duration,
         is_published: isPublished,
         training_mode: mode === "training",
+        random_questions: randomQuestions,
 
         opens_at: opensAt
           ? new Date(opensAt).toISOString()
@@ -300,6 +302,73 @@ export default function CreateQcm() {
                     opensAt={opensAt}
                   />
                 )}
+              </Box>
+
+              <Box
+                sx={{
+                  bgcolor: "#F8FAFC",
+                  border: "1px solid #E4E7EC",
+                  borderRadius: 2,
+                  p: 3,
+                  mb: 3,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: "#071F4A",
+                    fontWeight: 800,
+                    mb: 0.5,
+                  }}
+                >
+                  Ordre des questions
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#667085",
+                    mb: 1.5,
+                  }}
+                >
+                  Activez cette option si vous souhaitez que
+                  chaque candidat reçoive les questions dans
+                  un ordre aléatoire différent.
+                </Typography>
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={randomQuestions}
+                      onChange={(event) =>
+                        setRandomQuestions(
+                          event.target.checked
+                        )
+                      }
+                    />
+                  }
+                  label={
+                    randomQuestions
+                      ? "Ordre aléatoire activé"
+                      : "Ordre normal"
+                  }
+                />
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: randomQuestions
+                      ? "#027A48"
+                      : "#667085",
+                    mt: 1,
+                    fontWeight: randomQuestions
+                      ? 700
+                      : 400,
+                  }}
+                >
+                  {randomQuestions
+                    ? "Chaque candidat aura son propre ordre de questions."
+                    : "Les questions seront présentées dans l’ordre défini par le formateur."}
+                </Typography>
               </Box>
 
               <FormControlLabel
