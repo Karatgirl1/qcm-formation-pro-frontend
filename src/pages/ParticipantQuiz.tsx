@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { VolumeUp } from "@mui/icons-material";
 
 import {
   Alert,
@@ -48,6 +49,7 @@ type Question = {
 type PublicSession = {
   id: number;
   code: string;
+  accommodated_mode: boolean;
   qcm: {
     id: number;
     title: string;
@@ -78,6 +80,7 @@ export default function ParticipantQuiz() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Empêche un double envoi si le bouton et le timer
   // se déclenchent quasiment en même temps.
@@ -131,6 +134,11 @@ export default function ParticipantQuiz() {
     setSelectedAnswerIds([]);
     setAwardedPoints("");
 
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+
     if (currentQuestion.type === "free_text") {
       const answerCount = Math.max(
         1,
@@ -149,6 +157,50 @@ export default function ParticipantQuiz() {
     );
     submitLockRef.current = false;
   }, [currentQuestion?.id]);
+
+  useEffect(() => {
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const readQuestionAloud = () => {
+    if (!currentQuestion) {
+      return;
+    }
+
+    if (!("speechSynthesis" in window)) {
+      alert(
+        "La lecture à voix haute n’est pas disponible sur ce navigateur."
+      );
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(
+      currentQuestion.question
+    );
+
+    utterance.lang = "fr-FR";
+    utterance.rate = 0.9;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   const selectAnswer = (answerId: number) => {
     if (!currentQuestion || submitting) {
@@ -322,6 +374,7 @@ export default function ParticipantQuiz() {
   useEffect(() => {
     if (
       !currentQuestion ||
+      session?.accommodated_mode === true ||
       submitting ||
       submitLockRef.current
     ) {
@@ -345,6 +398,7 @@ export default function ParticipantQuiz() {
   }, [
     timeLeft,
     currentQuestion?.id,
+    session?.accommodated_mode,
     submitting,
   ]);
 
@@ -420,6 +474,19 @@ export default function ParticipantQuiz() {
           {totalQuestions}
         </Typography>
 
+        {session.accommodated_mode && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: "#027A48",
+              fontWeight: 700,
+              mb: 1.5,
+            }}
+          >
+            Mode aménagé — aucun temps limite
+          </Typography>
+        )}
+
         <LinearProgress
           variant="determinate"
           value={progress}
@@ -464,61 +531,87 @@ export default function ParticipantQuiz() {
                 {currentQuestion.question}
               </Typography>
 
-              <Box
-                sx={{
-                  minWidth: 105,
-                  textAlign: "center",
-                  bgcolor: timerUrgent
-                    ? "#FEE4E2"
-                    : "#EEF4FF",
-                  borderRadius: 3,
-                  px: 2,
-                  py: 1.5,
-                }}
-              >
-                <Typography
-                  variant="h4"
+              {session.accommodated_mode ? (
+                <Button
+                  variant="outlined"
+                  startIcon={<VolumeUp />}
+                  onClick={readQuestionAloud}
+                  disabled={submitting}
                   sx={{
-                    fontWeight: 900,
-                    color: timerUrgent
-                      ? "#D92D20"
-                      : "#071F4A",
-                    lineHeight: 1,
+                    color: "#071F4A",
+                    borderColor: "#071F4A",
+                    textTransform: "none",
+                    fontWeight: 800,
+                    flexShrink: 0,
                   }}
                 >
-                  {timeLeft}
-                </Typography>
+                  {isSpeaking
+                    ? "Relire la question"
+                    : "Lire la question à voix haute"}
+                </Button>
+              ) : (
+                <Box
+                  sx={{
+                    minWidth: 105,
+                    textAlign: "center",
+                    bgcolor: timerUrgent
+                      ? "#FEE4E2"
+                      : "#EEF4FF",
+                    borderRadius: 3,
+                    px: 2,
+                    py: 1.5,
+                  }}
+                >
+                  <Typography
+                    variant="h4"
+                    sx={{
+                      fontWeight: 900,
+                      color: timerUrgent
+                        ? "#D92D20"
+                        : "#071F4A",
+                      lineHeight: 1,
+                    }}
+                  >
+                    {timeLeft}
+                  </Typography>
 
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: timerUrgent
-                      ? "#D92D20"
-                      : "#667085",
-                    fontWeight: 700,
-                  }}
-                >
-                {timeLeft > 1 ? "secondes" : "seconde"}
-                </Typography>
-              </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: timerUrgent
+                        ? "#D92D20"
+                        : "#667085",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {timeLeft > 1 ? "secondes" : "seconde"}
+                  </Typography>
+                </Box>
+              )}
             </Box>
 
-            <LinearProgress
-              variant="determinate"
-              value={timerProgress}
-              sx={{
-                height: 7,
-                borderRadius: 4,
-                mb: 4,
-                "& .MuiLinearProgress-bar": {
-                  bgcolor: timerUrgent
-                    ? "#E3062C"
-                    : "#071F4A",
-                  transition:
-                    "transform 0.95s linear",
-                },
-              }}
-            />
+            {!session.accommodated_mode && (
+              <LinearProgress
+                variant="determinate"
+                value={timerProgress}
+                sx={{
+                  height: 7,
+                  borderRadius: 4,
+                  mb: 4,
+                  "& .MuiLinearProgress-bar": {
+                    bgcolor: timerUrgent
+                      ? "#E3062C"
+                      : "#071F4A",
+                    transition:
+                      "transform 0.95s linear",
+                  },
+                }}
+              />
+            )}
+
+            {session.accommodated_mode && (
+              <Box sx={{ mb: 4 }} />
+            )}
 
             <Box>
               {currentQuestion.type === "free_text" ? (

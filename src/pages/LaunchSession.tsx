@@ -93,6 +93,7 @@ type QuizSession = {
   id: number;
   code: string;
   status: "open" | "closed";
+  accommodated_mode?: boolean;
   started_at?: string | null;
   ended_at?: string | null;
   qcm?: SessionQcm;
@@ -352,7 +353,9 @@ export default function LaunchSession() {
     loadSessionDetails,
   ]);
 
-  const createSession = async () => {
+  const createSession = async (
+    accommodatedMode: boolean
+  ) => {
     if (!id) {
       setErrorMessage(
         "L’identifiant du QCM est introuvable."
@@ -366,7 +369,10 @@ export default function LaunchSession() {
       setErrorMessage("");
 
       const creationResponse = await api.post(
-        `/qcms/${id}/sessions`
+        `/qcms/${id}/sessions`,
+        {
+          accommodated_mode: accommodatedMode,
+        }
       );
 
       const createdSession: QuizSession =
@@ -629,7 +635,7 @@ export default function LaunchSession() {
                 mb: 4,
               }}
             >
-              Créez une session, affichez le QR
+              Choisissez le mode de session, affichez le QR
               Code et suivez les participants en
               direct.
             </Typography>
@@ -685,43 +691,147 @@ export default function LaunchSession() {
                     mb: 3,
                   }}
                 >
-                  Créez une session accessible aux
-                  participants.
+                  Choisissez le type de session à ouvrir.
                 </Typography>
 
-                <Button
-                  variant="contained"
-                  size="large"
-                  startIcon={
-                    creating ? (
-                      <CircularProgress
-                        size={20}
-                        sx={{
-                          color: "white",
-                        }}
-                      />
-                    ) : (
-                      <PlayArrow />
-                    )
-                  }
-                  onClick={createSession}
-                  disabled={creating}
+                <Box
                   sx={{
-                    bgcolor: "#E3062C",
-                    px: 4,
-                    py: 1.4,
-                    textTransform: "none",
-                    fontWeight: 800,
-
-                    "&:hover": {
-                      bgcolor: "#C80527",
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(2, 1fr)",
                     },
+                    gap: 2,
+                    maxWidth: 760,
+                    mx: "auto",
                   }}
                 >
-                  {creating
-                    ? "Création en cours..."
-                    : "Créer et ouvrir la session"}
-                </Button>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 3,
+                      borderColor: "#D0D5DD",
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#071F4A",
+                          fontWeight: 800,
+                        }}
+                      >
+                        Session standard
+                      </Typography>
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "#667085",
+                          mt: 1,
+                          mb: 2.5,
+                        }}
+                      >
+                        Le QCM fonctionne avec les timers
+                        configurés dans chaque question.
+                      </Typography>
+
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={
+                          creating ? (
+                            <CircularProgress
+                              size={20}
+                              sx={{ color: "white" }}
+                            />
+                          ) : (
+                            <PlayArrow />
+                          )
+                        }
+                        onClick={() =>
+                          void createSession(false)
+                        }
+                        disabled={creating}
+                        sx={{
+                          bgcolor: "#071F4A",
+                          py: 1.2,
+                          textTransform: "none",
+                          fontWeight: 800,
+                          "&:hover": {
+                            bgcolor: "#0A2A63",
+                          },
+                        }}
+                      >
+                        Lancer en mode standard
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      borderRadius: 3,
+                      borderColor: "#E3062C",
+                      bgcolor: "#FFF7F8",
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: "#071F4A",
+                          fontWeight: 800,
+                        }}
+                      >
+                        Session aménagée
+                      </Typography>
+
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: "#667085",
+                          mt: 1,
+                          mb: 2.5,
+                        }}
+                      >
+                        Sans timer. Le candidat pourra
+                        également choisir d’utiliser la
+                        lecture à voix haute.
+                      </Typography>
+
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        startIcon={
+                          creating ? (
+                            <CircularProgress
+                              size={20}
+                              sx={{ color: "white" }}
+                            />
+                          ) : (
+                            <PlayArrow />
+                          )
+                        }
+                        onClick={() =>
+                          void createSession(true)
+                        }
+                        disabled={creating}
+                        sx={{
+                          bgcolor: "#E3062C",
+                          py: 1.2,
+                          textTransform: "none",
+                          fontWeight: 800,
+                          "&:hover": {
+                            bgcolor: "#C80527",
+                          },
+                        }}
+                      >
+                        Lancer en mode aménagé
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Box>
               </Box>
             ) : (
               <>
@@ -739,6 +849,32 @@ export default function LaunchSession() {
                     ? "La session est ouverte. Les participants peuvent se connecter."
                     : "La session est fermée."}
                 </Alert>
+
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    mb: 3,
+                  }}
+                >
+                  <Chip
+                    label={
+                      session.accommodated_mode
+                        ? "Session aménagée"
+                        : "Session standard"
+                    }
+                    color={
+                      session.accommodated_mode
+                        ? "secondary"
+                        : "default"
+                    }
+                    variant={
+                      session.accommodated_mode
+                        ? "filled"
+                        : "outlined"
+                    }
+                  />
+                </Box>
 
                 <Box
                   sx={{
