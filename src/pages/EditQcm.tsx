@@ -21,6 +21,36 @@ import {
 
 import api from "../api/axios";
 
+function toLocalDateTimeInput(
+  value: string | null | undefined
+): string {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(
+    date.getMonth() + 1
+  ).padStart(2, "0");
+  const day = String(
+    date.getDate()
+  ).padStart(2, "0");
+  const hours = String(
+    date.getHours()
+  ).padStart(2, "0");
+  const minutes = String(
+    date.getMinutes()
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default function EditQcm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -29,27 +59,46 @@ export default function EditQcm() {
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState(20);
   const [isPublished, setIsPublished] = useState(false);
+  const [opensAt, setOpensAt] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   useEffect(() => {
     const loadQcm = async () => {
       try {
-        const response = await api.get(`/qcms/${id}`);
+        const response = await api.get(
+          `/qcms/${id}`
+        );
+
         const qcm = response.data;
 
         setTitle(qcm.title ?? "");
-        setDescription(qcm.description ?? "");
-        setDuration(Number(qcm.duration ?? 20));
+        setDescription(
+          qcm.description ?? ""
+        );
+
+        setDuration(
+          Number(qcm.duration ?? 20)
+        );
 
         setIsPublished(
           qcm.is_published === true ||
             qcm.is_published === 1
         );
+
+        setOpensAt(
+          toLocalDateTimeInput(
+            qcm.opens_at
+          )
+        );
       } catch (error: any) {
-        console.error("Erreur chargement QCM :", error);
+        console.error(
+          "Erreur chargement QCM :",
+          error
+        );
 
         setErrorMessage(
           error.response?.data?.message ??
@@ -60,7 +109,7 @@ export default function EditQcm() {
       }
     };
 
-    loadQcm();
+    void loadQcm();
   }, [id]);
 
   const updateQcm = async (
@@ -69,12 +118,16 @@ export default function EditQcm() {
     event.preventDefault();
 
     if (!title.trim()) {
-      alert("Le titre du QCM est obligatoire.");
+      alert(
+        "Le titre du QCM est obligatoire."
+      );
       return;
     }
 
     if (duration < 1) {
-      alert("La durée doit être supérieure à zéro.");
+      alert(
+        "La durée doit être supérieure à zéro."
+      );
       return;
     }
 
@@ -83,16 +136,28 @@ export default function EditQcm() {
 
       await api.put(`/qcms/${id}`, {
         title: title.trim(),
-        description: description.trim(),
+        description:
+          description.trim(),
         duration,
         is_published: isPublished,
+
+        opens_at: opensAt
+          ? new Date(
+              opensAt
+            ).toISOString()
+          : null,
       });
 
-      alert("Le QCM a été modifié avec succès.");
+      alert(
+        "Le QCM a été modifié avec succès."
+      );
 
       navigate(`/qcms/${id}`);
     } catch (error: any) {
-      console.error("Erreur modification QCM :", error);
+      console.error(
+        "Erreur modification QCM :",
+        error
+      );
 
       alert(
         error.response?.data?.message ??
@@ -124,13 +189,23 @@ export default function EditQcm() {
       sx={{
         minHeight: "100vh",
         bgcolor: "#F4F6FA",
-        p: { xs: 2, md: 4 },
+        p: {
+          xs: 2,
+          md: 4,
+        },
       }}
     >
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+      <Box
+        sx={{
+          maxWidth: 900,
+          mx: "auto",
+        }}
+      >
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate(`/qcms/${id}`)}
+          onClick={() =>
+            navigate(`/qcms/${id}`)
+          }
           sx={{
             mb: 3,
             color: "#071F4A",
@@ -142,7 +217,10 @@ export default function EditQcm() {
         </Button>
 
         {errorMessage && (
-          <Alert severity="error" sx={{ mb: 3 }}>
+          <Alert
+            severity="error"
+            sx={{ mb: 3 }}
+          >
             {errorMessage}
           </Alert>
         )}
@@ -150,10 +228,18 @@ export default function EditQcm() {
         <Card
           sx={{
             borderRadius: 3,
-            boxShadow: "0 6px 25px rgba(7,31,74,0.10)",
+            boxShadow:
+              "0 6px 25px rgba(7,31,74,0.10)",
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+          <CardContent
+            sx={{
+              p: {
+                xs: 3,
+                md: 5,
+              },
+            }}
+          >
             <Typography
               variant="h4"
               sx={{
@@ -165,20 +251,33 @@ export default function EditQcm() {
               Modifier le QCM
             </Typography>
 
-            <Typography sx={{ color: "#667085", mb: 4 }}>
-              Modifiez les informations générales du questionnaire.
+            <Typography
+              sx={{
+                color: "#667085",
+                mb: 4,
+              }}
+            >
+              Modifiez les informations
+              générales du questionnaire.
             </Typography>
 
-            <Box component="form" onSubmit={updateQcm}>
+            <Box
+              component="form"
+              onSubmit={updateQcm}
+            >
               <TextField
                 fullWidth
                 required
                 label="Titre du QCM"
                 value={title}
                 onChange={(event) =>
-                  setTitle(event.target.value)
+                  setTitle(
+                    event.target.value
+                  )
                 }
-                sx={{ mb: 3 }}
+                sx={{
+                  mb: 3,
+                }}
               />
 
               <TextField
@@ -188,9 +287,13 @@ export default function EditQcm() {
                 label="Description"
                 value={description}
                 onChange={(event) =>
-                  setDescription(event.target.value)
+                  setDescription(
+                    event.target.value
+                  )
                 }
-                sx={{ mb: 3 }}
+                sx={{
+                  mb: 3,
+                }}
               />
 
               <TextField
@@ -200,22 +303,108 @@ export default function EditQcm() {
                 label="Durée en minutes"
                 value={duration}
                 onChange={(event) =>
-                  setDuration(Number(event.target.value))
+                  setDuration(
+                    Number(
+                      event.target.value
+                    )
+                  )
                 }
                 slotProps={{
                   htmlInput: {
                     min: 1,
                   },
                 }}
-                sx={{ mb: 3 }}
+                sx={{
+                  mb: 3,
+                }}
               />
+
+              <Box
+                sx={{
+                  bgcolor: "#F8FAFC",
+                  border:
+                    "1px solid #E4E7EC",
+                  borderRadius: 2,
+                  p: 3,
+                  mb: 3,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: "#071F4A",
+                    fontWeight: 800,
+                    mb: 0.5,
+                  }}
+                >
+                  Ouverture du QCM
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#667085",
+                    mb: 2,
+                  }}
+                >
+                  Laissez le champ vide
+                  pour une ouverture
+                  immédiate, ou choisissez
+                  une nouvelle date et
+                  heure d'ouverture.
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Date et heure d'ouverture"
+                  value={opensAt}
+                  onChange={(event) =>
+                    setOpensAt(
+                      event.target.value
+                    )
+                  }
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                />
+
+                {opensAt && (
+                  <>
+                    <OpeningDateInfo
+                      opensAt={opensAt}
+                    />
+
+                    <Button
+                      variant="text"
+                      onClick={() =>
+                        setOpensAt("")
+                      }
+                      sx={{
+                        mt: 1,
+                        color: "#E3062C",
+                        textTransform:
+                          "none",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Supprimer la date
+                      d'ouverture
+                    </Button>
+                  </>
+                )}
+              </Box>
 
               <FormControlLabel
                 control={
                   <Switch
                     checked={isPublished}
                     onChange={(event) =>
-                      setIsPublished(event.target.checked)
+                      setIsPublished(
+                        event.target
+                          .checked
+                      )
                     }
                   />
                 }
@@ -224,24 +413,47 @@ export default function EditQcm() {
                     ? "QCM publié"
                     : "QCM en brouillon"
                 }
-                sx={{ mb: 4 }}
+                sx={{
+                  mb: 1,
+                }}
               />
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#667085",
+                  mb: 4,
+                }}
+              >
+                Un QCM publié avec une
+                date d'ouverture future
+                restera inaccessible aux
+                participants jusqu'à cette
+                date.
+              </Typography>
 
               <Box
                 sx={{
                   display: "flex",
-                  justifyContent: "flex-end",
+                  justifyContent:
+                    "flex-end",
                   gap: 2,
                   flexWrap: "wrap",
                 }}
               >
                 <Button
                   variant="outlined"
-                  onClick={() => navigate(`/qcms/${id}`)}
+                  onClick={() =>
+                    navigate(
+                      `/qcms/${id}`
+                    )
+                  }
                   sx={{
                     color: "#071F4A",
-                    borderColor: "#071F4A",
-                    textTransform: "none",
+                    borderColor:
+                      "#071F4A",
+                    textTransform:
+                      "none",
                     fontWeight: 700,
                   }}
                 >
@@ -255,7 +467,10 @@ export default function EditQcm() {
                     saving ? (
                       <CircularProgress
                         size={18}
-                        sx={{ color: "white" }}
+                        sx={{
+                          color:
+                            "white",
+                        }}
                       />
                     ) : (
                       <Save />
@@ -264,12 +479,14 @@ export default function EditQcm() {
                   disabled={saving}
                   sx={{
                     bgcolor: "#E3062C",
-                    textTransform: "none",
+                    textTransform:
+                      "none",
                     fontWeight: 700,
                     px: 3,
 
                     "&:hover": {
-                      bgcolor: "#C80527",
+                      bgcolor:
+                        "#C80527",
                     },
                   }}
                 >
@@ -283,5 +500,42 @@ export default function EditQcm() {
         </Card>
       </Box>
     </Box>
+  );
+}
+
+function OpeningDateInfo({
+  opensAt,
+}: {
+  opensAt: string;
+}) {
+  const date = new Date(opensAt);
+
+  if (
+    Number.isNaN(date.getTime())
+  ) {
+    return null;
+  }
+
+  const formattedDate =
+    new Intl.DateTimeFormat(
+      "fr-FR",
+      {
+        dateStyle: "full",
+        timeStyle: "short",
+      }
+    ).format(date);
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        color: "#027A48",
+        fontWeight: 700,
+        mt: 1.5,
+      }}
+    >
+      Ouverture programmée :{" "}
+      {formattedDate}
+    </Typography>
   );
 }

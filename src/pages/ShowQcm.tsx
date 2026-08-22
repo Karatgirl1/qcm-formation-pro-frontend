@@ -46,6 +46,7 @@ type Qcm = {
   description: string | null;
   duration: number;
   is_published: boolean | number;
+  opens_at?: string | null;
   created_at?: string;
   updated_at?: string;
   questions?: Question[];
@@ -168,6 +169,23 @@ export default function ShowQcm() {
 
   const questions = qcm.questions ?? [];
 
+  const openingValue = (() => {
+    if (!qcm.opens_at) {
+      return "Immédiate";
+    }
+
+    const date = new Date(qcm.opens_at);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Date invalide";
+    }
+
+    return new Intl.DateTimeFormat("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(date);
+  })();
+
   return (
     <Box
       sx={{
@@ -240,7 +258,7 @@ export default function ShowQcm() {
                 gridTemplateColumns: {
                   xs: "1fr",
                   sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
+                  md: "repeat(4, 1fr)",
                 },
                 gap: 2,
                 mt: 4,
@@ -261,6 +279,11 @@ export default function ShowQcm() {
               <InformationCard
                 title="Statut"
                 value={isPublished ? "Publié" : "Brouillon"}
+              />
+
+              <InformationCard
+                title="Ouverture"
+                value={openingValue}
               />
             </Box>
 

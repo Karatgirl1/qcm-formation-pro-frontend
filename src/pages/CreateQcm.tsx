@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import {
   Box,
   Button,
@@ -14,7 +15,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { ArrowBack, Save } from "@mui/icons-material";
+
+import {
+  ArrowBack,
+  Save,
+} from "@mui/icons-material";
+
 import api from "../api/axios";
 
 export default function CreateQcm() {
@@ -25,9 +31,14 @@ export default function CreateQcm() {
   const [duration, setDuration] = useState(20);
   const [mode, setMode] = useState("exam");
   const [isPublished, setIsPublished] = useState(false);
+
+  const [opensAt, setOpensAt] = useState("");
+
   const [loading, setLoading] = useState(false);
 
-  const submitQcm = async (event: React.FormEvent) => {
+  const submitQcm = async (
+    event: React.FormEvent
+  ) => {
     event.preventDefault();
 
     if (!title.trim()) {
@@ -39,17 +50,25 @@ export default function CreateQcm() {
       setLoading(true);
 
       await api.post("/qcms", {
-  title,
-  description,
-  duration,
-  is_published: isPublished,
-  training_mode: mode === "training",
-});
+        title: title.trim(),
+        description: description.trim(),
+        duration,
+        is_published: isPublished,
+        training_mode: mode === "training",
+
+        opens_at: opensAt
+          ? new Date(opensAt).toISOString()
+          : null,
+      });
 
       alert("Le QCM a été créé avec succès.");
+
       navigate("/dashboard");
     } catch (error: any) {
-      console.error("Erreur création QCM :", error);
+      console.error(
+        "Erreur création QCM :",
+        error
+      );
 
       alert(
         error.response?.data?.message ??
@@ -65,13 +84,23 @@ export default function CreateQcm() {
       sx={{
         minHeight: "100vh",
         bgcolor: "#F4F6FA",
-        p: { xs: 2, md: 4 },
+        p: {
+          xs: 2,
+          md: 4,
+        },
       }}
     >
-      <Box sx={{ maxWidth: 900, mx: "auto" }}>
+      <Box
+        sx={{
+          maxWidth: 900,
+          mx: "auto",
+        }}
+      >
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate("/dashboard")}
+          onClick={() =>
+            navigate("/dashboard")
+          }
           sx={{
             mb: 3,
             color: "#071F4A",
@@ -85,10 +114,18 @@ export default function CreateQcm() {
         <Card
           sx={{
             borderRadius: 3,
-            boxShadow: "0 6px 25px rgba(7,31,74,0.10)",
+            boxShadow:
+              "0 6px 25px rgba(7,31,74,0.10)",
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+          <CardContent
+            sx={{
+              p: {
+                xs: 3,
+                md: 5,
+              },
+            }}
+          >
             <Typography
               variant="h4"
               sx={{
@@ -100,19 +137,32 @@ export default function CreateQcm() {
               Créer un nouveau QCM
             </Typography>
 
-            <Typography sx={{ color: "#667085", mb: 4 }}>
-              Renseignez les informations principales du questionnaire.
+            <Typography
+              sx={{
+                color: "#667085",
+                mb: 4,
+              }}
+            >
+              Renseignez les informations
+              principales du questionnaire.
             </Typography>
 
-            <Box component="form" onSubmit={submitQcm}>
+            <Box
+              component="form"
+              onSubmit={submitQcm}
+            >
               <TextField
                 fullWidth
                 required
                 label="Titre du QCM"
                 value={title}
-                onChange={(event) => setTitle(event.target.value)}
+                onChange={(event) =>
+                  setTitle(event.target.value)
+                }
                 placeholder="Exemple : Arbitrage kumité – Niveau régional"
-                sx={{ mb: 3 }}
+                sx={{
+                  mb: 3,
+                }}
               />
 
               <TextField
@@ -121,9 +171,15 @@ export default function CreateQcm() {
                 minRows={4}
                 label="Description"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) =>
+                  setDescription(
+                    event.target.value
+                  )
+                }
                 placeholder="Présentez brièvement le contenu et les objectifs du QCM."
-                sx={{ mb: 3 }}
+                sx={{
+                  mb: 3,
+                }}
               />
 
               <TextField
@@ -132,24 +188,39 @@ export default function CreateQcm() {
                 label="Durée totale en minutes"
                 value={duration}
                 onChange={(event) =>
-                  setDuration(Number(event.target.value))
+                  setDuration(
+                    Number(event.target.value)
+                  )
                 }
                 slotProps={{
-  htmlInput: {
-    min: 1,
-  },
-}}
-                sx={{ mb: 3 }}
+                  htmlInput: {
+                    min: 1,
+                  },
+                }}
+                sx={{
+                  mb: 3,
+                }}
               />
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="mode-label">Mode du QCM</InputLabel>
+              <FormControl
+                fullWidth
+                sx={{
+                  mb: 3,
+                }}
+              >
+                <InputLabel id="mode-label">
+                  Mode du QCM
+                </InputLabel>
 
                 <Select
                   labelId="mode-label"
                   label="Mode du QCM"
                   value={mode}
-                  onChange={(event) => setMode(event.target.value)}
+                  onChange={(event) =>
+                    setMode(
+                      event.target.value
+                    )
+                  }
                 >
                   <MenuItem value="training">
                     Mode entraînement
@@ -160,31 +231,106 @@ export default function CreateQcm() {
                   </MenuItem>
                 </Select>
               </FormControl>
+
               <Typography
-  variant="body2"
-  sx={{
-    color: "#667085",
-    mt: -2,
-    mb: 3,
-  }}
->
-  {mode === "training"
-    ? "Le participant pourra voir son score à la fin du QCM."
-    : "Le participant ne verra pas son score à la fin du QCM."}
-</Typography>
+                variant="body2"
+                sx={{
+                  color: "#667085",
+                  mt: -2,
+                  mb: 3,
+                }}
+              >
+                {mode === "training"
+                  ? "Le participant pourra voir son score à la fin du QCM."
+                  : "Le participant ne verra pas son score à la fin du QCM."}
+              </Typography>
+
+              <Box
+                sx={{
+                  bgcolor: "#F8FAFC",
+                  border:
+                    "1px solid #E4E7EC",
+                  borderRadius: 2,
+                  p: 3,
+                  mb: 3,
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: "#071F4A",
+                    fontWeight: 800,
+                    mb: 0.5,
+                  }}
+                >
+                  Ouverture du QCM
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#667085",
+                    mb: 2,
+                  }}
+                >
+                  Laissez ce champ vide pour
+                  permettre l'accès immédiatement,
+                  ou choisissez une date et une
+                  heure d'ouverture.
+                </Typography>
+
+                <TextField
+                  fullWidth
+                  type="datetime-local"
+                  label="Date et heure d'ouverture"
+                  value={opensAt}
+                  onChange={(event) =>
+                    setOpensAt(
+                      event.target.value
+                    )
+                  }
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                />
+
+                {opensAt && (
+                  <AlertOpeningDate
+                    opensAt={opensAt}
+                  />
+                )}
+              </Box>
 
               <FormControlLabel
                 control={
                   <Switch
                     checked={isPublished}
                     onChange={(event) =>
-                      setIsPublished(event.target.checked)
+                      setIsPublished(
+                        event.target.checked
+                      )
                     }
                   />
                 }
-                label="Publier immédiatement ce QCM"
-                sx={{ mb: 4 }}
+                label="Publier ce QCM"
+                sx={{
+                  mb: 1,
+                }}
               />
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "#667085",
+                  mb: 4,
+                }}
+              >
+                Un QCM publié avec une date
+                d'ouverture programmée restera
+                inaccessible aux participants
+                jusqu'à cette date.
+              </Typography>
 
               <Box
                 sx={{
@@ -196,7 +342,9 @@ export default function CreateQcm() {
               >
                 <Button
                   variant="outlined"
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() =>
+                    navigate("/dashboard")
+                  }
                   sx={{
                     borderColor: "#071F4A",
                     color: "#071F4A",
@@ -223,7 +371,9 @@ export default function CreateQcm() {
                     },
                   }}
                 >
-                  {loading ? "Enregistrement..." : "Créer le QCM"}
+                  {loading
+                    ? "Enregistrement..."
+                    : "Créer le QCM"}
                 </Button>
               </Box>
             </Box>
@@ -231,5 +381,40 @@ export default function CreateQcm() {
         </Card>
       </Box>
     </Box>
+  );
+}
+
+function AlertOpeningDate({
+  opensAt,
+}: {
+  opensAt: string;
+}) {
+  const date = new Date(opensAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const formattedDate =
+    new Intl.DateTimeFormat(
+      "fr-FR",
+      {
+        dateStyle: "full",
+        timeStyle: "short",
+      }
+    ).format(date);
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        color: "#027A48",
+        fontWeight: 700,
+        mt: 1.5,
+      }}
+    >
+      Ouverture programmée :{" "}
+      {formattedDate}
+    </Typography>
   );
 }
