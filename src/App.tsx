@@ -16,11 +16,14 @@ import ImportWordQuestions from "./pages/ImportWordQuestions";
 import LaunchSession from "./pages/LaunchSession";
 import ActiveSessions from "./pages/ActiveSessions";
 import Results from "./pages/Results";
+import ResultGroups from "./pages/ResultGroups";
 import ParticipantFinished from "./pages/ParticipantFinished";
 import ParticipantJoin from "./pages/ParticipantJoin";
 import ParticipantQuiz from "./pages/ParticipantQuiz";
 import SessionHistory from "./pages/SessionHistory";
 import SharedResults from "./pages/SharedResults";
+import SharedGroupResults from "./pages/SharedGroupResults";
+
 
 function ProtectedRoute({
   children,
@@ -56,6 +59,10 @@ function App() {
         path="/shared-results/:token"
         element={<SharedResults />}
       />
+      <Route
+  path="/shared-group-results/:token"
+  element={<SharedGroupResults />}
+/>
 
       <Route
         path="/participant/finished"
@@ -89,6 +96,14 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/result-groups"
+  element={
+    <ProtectedRoute>
+      <ResultGroups />
+    </ProtectedRoute>
+  }
+/>
 
       <Route
         path="/qcms/create"

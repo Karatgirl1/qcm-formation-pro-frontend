@@ -1,9 +1,11 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import {
   ArrowBack,
   Assessment,
+  CompareArrows,
   History,
   Visibility,
 } from "@mui/icons-material";
@@ -158,6 +160,24 @@ export default function Results() {
           Consultez les statistiques de chaque QCM puis ouvrez
           son historique pour voir le détail des sessions.
         </Typography>
+
+        <Button
+          variant="contained"
+          startIcon={<CompareArrows />}
+          onClick={() => navigate("/result-groups")}
+          sx={{
+            mb: 3,
+            bgcolor: "#071F4A",
+            textTransform: "none",
+            fontWeight: 800,
+            py: 1.2,
+            "&:hover": {
+              bgcolor: "#0A2A63",
+            },
+          }}
+        >
+          Regrouper deux sessions
+        </Button>
 
         {errorMessage && (
           <Alert severity="error" sx={{ mb: 3 }}>
