@@ -69,26 +69,22 @@ export default function QcmCard({ qcm }: Props) {
     }
   };
 
-  const duplicateQcm = async () => {
-    try {
-      setDuplicating(true);
+ const duplicateQcm = async () => {
+  try {
+    setDuplicating(true);
 
-      await api.post("/qcms", {
-        title: `${qcm.title} - Copie`,
-        description: qcm.description ?? "",
-        duration: qcm.duration,
-      });
+    await api.post(`/qcms/${qcm.id}/duplicate`);
 
-      window.location.reload();
-    } catch (error: any) {
-      alert(
-        error.response?.data?.message ??
-          "Impossible de dupliquer le QCM."
-      );
-    } finally {
-      setDuplicating(false);
-    }
-  };
+    window.location.reload();
+  } catch (error: any) {
+    alert(
+      error.response?.data?.message ??
+        "Impossible de dupliquer le QCM."
+    );
+  } finally {
+    setDuplicating(false);
+  }
+};
 
   return (
     <Card
