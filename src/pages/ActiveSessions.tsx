@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -21,7 +22,6 @@ import {
 } from "@mui/material";
 
 import { QRCodeSVG } from "qrcode.react";
-
 import api from "../api/axios";
 
 type ActiveSession = {
@@ -45,6 +45,10 @@ export default function ActiveSessions() {
     useState<number | null>(null);
   const [copiedSessionId, setCopiedSessionId] =
     useState<number | null>(null);
+  const [copiedQrId, setCopiedQrId] =
+    useState<number | null>(null);
+  const [copyingQrId, setCopyingQrId] =
+    useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
 
   const loadSessions = async () => {
@@ -56,7 +60,6 @@ export default function ActiveSessions() {
       setSessions(response.data?.sessions ?? []);
     } catch (error: any) {
       console.error(error);
-
       setErrorMessage(
         error.response?.data?.message ??
           "Impossible de charger les sessions actives."
@@ -80,7 +83,6 @@ export default function ActiveSessions() {
 
     try {
       await navigator.clipboard.writeText(participantUrl);
-
       setCopiedSessionId(session.id);
 
       window.setTimeout(() => {
@@ -90,9 +92,141 @@ export default function ActiveSessions() {
       }, 2000);
     } catch (error) {
       console.error(error);
-      alert(
-        "Impossible de copier automatiquement le lien. Vous pouvez le sélectionner manuellement."
+      window.alert(
+        "Impossible de copier automatiquement le lien."
       );
+    }
+  };
+
+  // Copie le QR code sous forme d'image PNG.
+  const copyQrCode = async (session: ActiveSession) => {
+    try {
+      setCopyingQrId(session.id);
+
+      if (
+        !navigator.clipboard ||
+        !navigator.clipboard.write ||
+        typeof ClipboardItem === "undefined"
+      ) {
+        throw new Error(
+          "La copie d'images n'est pas prise en charge."
+        );
+      }
+
+      const container = document.getElementById(
+        `qr-session-${session.id}`
+      );
+
+      const svg = container?.querySelector("svg");
+
+      if (!svg) {
+        throw new Error("QR code introuvable.");
+      }
+
+      const svgCopy = svg.cloneNode(true) as SVGSVGElement;
+
+      // Ajoute un fond blanc pour un collage propre.
+      const background = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "rect"
+      );
+
+      background.setAttribute("width", "100%");
+      background.setAttribute("height", "100%");
+      background.setAttribute("fill", "white");
+
+      svgCopy.insertBefore(background, svgCopy.firstChild);
+      svgCopy.setAttribute(
+        "xmlns",
+        "http://www.w3.org/2000/svg"
+      );
+
+      const svgText = new XMLSerializer().serializeToString(
+        svgCopy
+      );
+
+      const svgBlob = new Blob([svgText], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+
+      const svgUrl = URL.createObjectURL(svgBlob);
+
+      try {
+        // Prépare la conversion immédiatement après le clic.
+        const pngPromise = new Promise<Blob>(
+          (resolve, reject) => {
+            const image = new Image();
+
+            image.onload = () => {
+              const canvas = document.createElement("canvas");
+              const size = 600;
+
+              canvas.width = size;
+              canvas.height = size;
+
+              const context = canvas.getContext("2d");
+
+              if (!context) {
+                reject(new Error("Canvas indisponible."));
+                return;
+              }
+
+              context.fillStyle = "white";
+              context.fillRect(0, 0, size, size);
+              context.drawImage(image, 0, 0, size, size);
+
+              canvas.toBlob(
+                (blob) => {
+                  if (blob) {
+                    resolve(blob);
+                  } else {
+                    reject(
+                      new Error("Conversion PNG impossible.")
+                    );
+                  }
+                },
+                "image/png"
+              );
+            };
+
+            image.onerror = () => {
+              reject(
+                new Error("Impossible de charger le QR code.")
+              );
+            };
+
+            image.src = svgUrl;
+          }
+        );
+
+        // Le navigateur reçoit la demande de copie
+        // directement lors du clic.
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "image/png": pngPromise,
+          }),
+        ]);
+
+        setCopiedQrId(session.id);
+
+        window.setTimeout(() => {
+          setCopiedQrId((current) =>
+            current === session.id ? null : current
+          );
+        }, 2500);
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+    } catch (error) {
+      console.error("Erreur copie QR code :", error);
+
+      window.alert(
+        "Impossible de copier l'image du QR code. " +
+          "Utilisez Chrome ou Edge sur une page HTTPS, " +
+          "puis réessayez."
+      );
+    } finally {
+      setCopyingQrId(null);
     }
   };
 
@@ -101,9 +235,7 @@ export default function ActiveSessions() {
       `Supprimer définitivement la session ${session.code} de « ${session.qcm.title} » ?`
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       setDeletingId(session.id);
@@ -116,7 +248,7 @@ export default function ActiveSessions() {
     } catch (error: any) {
       console.error(error);
 
-      alert(
+      window.alert(
         error.response?.data?.message ??
           "Impossible de supprimer cette session."
       );
@@ -285,10 +417,6 @@ export default function ActiveSessions() {
                           onClick={() =>
                             void deleteSession(session)
                           }
-                          sx={{
-                            textTransform: "none",
-                            fontWeight: 700,
-                          }}
                         >
                           {deletingId === session.id
                             ? "Suppression..."
@@ -314,13 +442,13 @@ export default function ActiveSessions() {
                       <Box
                         sx={{
                           display: "flex",
-                          justifyContent: {
-                            xs: "center",
-                            md: "flex-start",
-                          },
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 1.5,
                         }}
                       >
                         <Box
+                          id={`qr-session-${session.id}`}
                           sx={{
                             bgcolor: "white",
                             p: 2,
@@ -335,6 +463,27 @@ export default function ActiveSessions() {
                             marginSize={2}
                           />
                         </Box>
+
+                        <Button
+                          variant="outlined"
+                          startIcon={<ContentCopy />}
+                          disabled={copyingQrId === session.id}
+                          onClick={() =>
+                            void copyQrCode(session)
+                          }
+                          sx={{
+                            color: "#071F4A",
+                            borderColor: "#071F4A",
+                            textTransform: "none",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {copyingQrId === session.id
+                            ? "Copie..."
+                            : copiedQrId === session.id
+                              ? "QR code copié !"
+                              : "Copier le QR code"}
+                        </Button>
                       </Box>
 
                       <Box>
@@ -402,3 +551,4 @@ export default function ActiveSessions() {
     </Box>
   );
 }
+
