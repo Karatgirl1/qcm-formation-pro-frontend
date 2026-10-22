@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../api/axios";
 import QcmCard from "../components/QcmCard";
+import QcmFolderBrowser from "../components/QcmFolderBrowser";
+
+import type {
+  Qcm,
+  QcmFolder,
+} from "../components/QcmCard";
 
 import {
   Add,
@@ -30,15 +37,7 @@ import {
   Typography,
 } from "@mui/material";
 
-const drawerWidth = 260;
-
-type Qcm = {
-  id: number;
-  title: string;
-  description: string;
-  duration: number;
-  is_published: boolean;
-};
+const drawerWidth = 290;
 
 type DashboardStatistics = {
   qcms_count: number;
@@ -47,10 +46,16 @@ type DashboardStatistics = {
   active_sessions_count: number;
 };
 
+type SelectedFolder = number | null | "all";
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
   const [qcms, setQcms] = useState<Qcm[]>([]);
+  const [folders, setFolders] = useState<QcmFolder[]>([]);
+  const [selectedFolderId, setSelectedFolderId] =
+    useState<SelectedFolder>("all");
+
   const [statistics, setStatistics] =
     useState<DashboardStatistics>({
       qcms_count: 0,
@@ -58,36 +63,48 @@ export default function Dashboard() {
       average_result: null,
       active_sessions_count: 0,
     });
+
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const topRef = useRef<HTMLDivElement | null>(null);
   const qcmsRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    void loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
+      setError("");
 
-      const [qcmsResponse, statisticsResponse] =
-        await Promise.all([
-          api.get("/qcms"),
-          api.get("/statistics"),
-        ]);
+      const [
+        qcmsResponse,
+        statisticsResponse,
+        foldersResponse,
+      ] = await Promise.all([
+        api.get<Qcm[]>("/qcms"),
+        api.get<DashboardStatistics>("/statistics"),
+        api.get<QcmFolder[]>("/qcm-folders"),
+      ]);
 
       setQcms(qcmsResponse.data);
       setStatistics(statisticsResponse.data);
-    } catch (error) {
+      setFolders(foldersResponse.data);
+    } catch (err) {
       console.error(
         "Erreur lors du chargement du tableau de bord :",
-        error
+        err
+      );
+
+      setError(
+        "Impossible de charger les données du tableau de bord."
       );
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadDashboard();
+  }, [loadDashboard]);
 
   const scrollTo = (
     ref: React.RefObject<HTMLDivElement | null>
@@ -98,26 +115,66 @@ export default function Dashboard() {
     });
   };
 
+  const selectFolder = (id: SelectedFolder) => {
+    setSelectedFolderId(id);
+
+    window.setTimeout(() => {
+      scrollTo(qcmsRef);
+    }, 50);
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     navigate("/");
   };
 
+  const selectedFolder =
+    typeof selectedFolderId === "number"
+      ? folders.find(
+          (folder) => folder.id === selectedFolderId
+        )
+      : null;
+
+  const visibleQcms = qcms.filter((qcm) => {
+    if (selectedFolderId === "all") {
+      return true;
+    }
+
+    if (selectedFolderId === null) {
+      return qcm.folder_id == null;
+    }
+
+    return Number(qcm.folder_id) === selectedFolderId;
+  });
+
+  const sectionTitle =
+    selectedFolderId === "all"
+      ? "Tous mes QCM"
+      : selectedFolderId === null
+        ? "QCM non classés"
+        : selectedFolder?.name ?? "Mes QCM";
+
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "#F4F6FA" }}>
+    <Box
+      sx={{
+        display: "flex",
+        minHeight: "100vh",
+        bgcolor: "#F4F6FA",
+      }}
+    >
       {/* Menu latéral */}
       <Drawer
         variant="permanent"
         sx={{
           width: drawerWidth,
           flexShrink: 0,
-
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
             bgcolor: "#071F4A",
             color: "white",
             borderRight: "none",
+            overflowY: "auto",
           },
         }}
       >
@@ -142,7 +199,7 @@ export default function Dashboard() {
           />
         </Box>
 
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 2.5 }}>
           <Typography
             variant="h6"
             sx={{
@@ -155,12 +212,14 @@ export default function Dashboard() {
 
           <List>
             <ListItemButton
-              onClick={() => scrollTo(topRef)}
+              onClick={() => {
+                setSelectedFolderId("all");
+                scrollTo(topRef);
+              }}
               sx={{
                 bgcolor: "#E3062C",
                 borderRadius: 2,
                 mb: 1,
-
                 "&:hover": {
                   bgcolor: "#C80527",
                 },
@@ -169,18 +228,16 @@ export default function Dashboard() {
               <ListItemIcon sx={{ color: "white" }}>
                 <Home />
               </ListItemIcon>
-
               <ListItemText primary="Tableau de bord" />
             </ListItemButton>
 
             <ListItemButton
-              onClick={() => scrollTo(qcmsRef)}
+              onClick={() => selectFolder("all")}
               sx={{ borderRadius: 2 }}
             >
               <ListItemIcon sx={{ color: "white" }}>
                 <Quiz />
               </ListItemIcon>
-
               <ListItemText primary="Mes QCM" />
             </ListItemButton>
 
@@ -191,10 +248,33 @@ export default function Dashboard() {
               <ListItemIcon sx={{ color: "white" }}>
                 <Add />
               </ListItemIcon>
-
               <ListItemText primary="Nouveau QCM" />
             </ListItemButton>
+          </List>
 
+          <Divider
+            sx={{
+              bgcolor: "rgba(255,255,255,0.25)",
+              my: 2,
+            }}
+          />
+
+          {/* Dossiers toujours visibles */}
+          <QcmFolderBrowser
+            folders={folders}
+            selectedFolderId={selectedFolderId}
+            onSelectFolder={selectFolder}
+            onRefresh={() => void loadDashboard()}
+          />
+
+          <Divider
+            sx={{
+              bgcolor: "rgba(255,255,255,0.25)",
+              my: 2,
+            }}
+          />
+
+          <List>
             <ListItemButton
               onClick={() => navigate("/results")}
               sx={{ borderRadius: 2 }}
@@ -202,29 +282,24 @@ export default function Dashboard() {
               <ListItemIcon sx={{ color: "white" }}>
                 <Assessment />
               </ListItemIcon>
-
               <ListItemText primary="Résultats" />
             </ListItemButton>
+
+            <ListItemButton
+              onClick={logout}
+              sx={{
+                borderRadius: 2,
+                "&:hover": {
+                  bgcolor: "rgba(255,255,255,0.10)",
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: "white" }}>
+                <Logout />
+              </ListItemIcon>
+              <ListItemText primary="Déconnexion" />
+            </ListItemButton>
           </List>
-
-          <Divider sx={{ bgcolor: "rgba(255,255,255,0.25)", my: 2 }} />
-
-          <ListItemButton
-            onClick={logout}
-            sx={{
-              borderRadius: 2,
-
-              "&:hover": {
-                bgcolor: "rgba(255,255,255,0.10)",
-              },
-            }}
-          >
-            <ListItemIcon sx={{ color: "white" }}>
-              <Logout />
-            </ListItemIcon>
-
-            <ListItemText primary="Déconnexion" />
-          </ListItemButton>
         </Box>
       </Drawer>
 
@@ -269,13 +344,20 @@ export default function Dashboard() {
             </Avatar>
 
             <Box>
-              <Typography sx={{ fontWeight: 700 }}>Cécile</Typography>
-              <Typography variant="body2">Formateur</Typography>
+              <Typography sx={{ fontWeight: 700 }}>
+                Cécile
+              </Typography>
+              <Typography variant="body2">
+                Formateur
+              </Typography>
             </Box>
           </Toolbar>
         </AppBar>
 
-        <Box ref={topRef} sx={{ p: { xs: 2, md: 4 } }}>
+        <Box
+          ref={topRef}
+          sx={{ p: { xs: 2, md: 4 } }}
+        >
           <Typography
             variant="h4"
             sx={{
@@ -286,7 +368,13 @@ export default function Dashboard() {
             Bonjour Cécile 👋
           </Typography>
 
-          <Typography sx={{ color: "#5E6780", mt: 1, mb: 4 }}>
+          <Typography
+            sx={{
+              color: "#5E6780",
+              mt: 1,
+              mb: 4,
+            }}
+          >
             Voici un aperçu de vos activités.
           </Typography>
 
@@ -327,11 +415,7 @@ export default function Dashboard() {
                     ? "—"
                     : `${statistics.average_result} %`
                 }
-                subtitle={
-                  statistics.average_result === null
-                    ? "Cliquez pour consulter les résultats"
-                    : "Cliquez pour consulter les résultats"
-                }
+                subtitle="Cliquez pour consulter les résultats"
                 icon={<Assessment />}
                 color="#071F4A"
               />
@@ -366,7 +450,8 @@ export default function Dashboard() {
               mt: 4,
               scrollMarginTop: 24,
               borderRadius: 3,
-              boxShadow: "0 6px 25px rgba(7,31,74,0.08)",
+              boxShadow:
+                "0 6px 25px rgba(7,31,74,0.08)",
             }}
           >
             <CardContent sx={{ p: 3 }}>
@@ -380,20 +465,34 @@ export default function Dashboard() {
                   mb: 3,
                 }}
               >
-                <Typography
-                  variant="h5"
-                  sx={{
-                    color: "#071F4A",
-                    fontWeight: 700,
-                  }}
-                >
-                  Mes QCM
-                </Typography>
+                <Box>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      color: "#071F4A",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {sectionTitle}
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: "#667085",
+                      mt: 0.5,
+                    }}
+                  >
+                    {visibleQcms.length} QCM
+                  </Typography>
+                </Box>
 
                 <Button
                   variant="contained"
                   startIcon={<Add />}
-                  onClick={() => navigate("/qcms/create")}
+                  onClick={() =>
+                    navigate("/qcms/create")
+                  }
                   sx={{
                     bgcolor: "#E3062C",
                     borderRadius: 2,
@@ -401,7 +500,6 @@ export default function Dashboard() {
                     py: 1.2,
                     fontWeight: 700,
                     textTransform: "none",
-
                     "&:hover": {
                       bgcolor: "#C80527",
                     },
@@ -412,13 +510,28 @@ export default function Dashboard() {
               </Box>
 
               {loading ? (
-                <Typography>Chargement des QCM...</Typography>
-              ) : qcms.length === 0 ? (
+                <Typography>
+                  Chargement des QCM...
+                </Typography>
+              ) : error ? (
+                <Typography color="error">
+                  {error}
+                </Typography>
+              ) : visibleQcms.length === 0 ? (
                 <Typography sx={{ color: "#667085" }}>
-                  Aucun QCM enregistré.
+                  Aucun QCM dans cette rubrique.
                 </Typography>
               ) : (
-                qcms.map((qcm) => <QcmCard key={qcm.id} qcm={qcm} />)
+                visibleQcms.map((qcm) => (
+                  <QcmCard
+                    key={qcm.id}
+                    qcm={qcm}
+                    folders={folders}
+                    onRefresh={() =>
+                      void loadDashboard()
+                    }
+                  />
+                ))
               )}
             </CardContent>
           </Card>
@@ -447,11 +560,18 @@ function StatCard({
     <Card
       sx={{
         borderRadius: 3,
-        boxShadow: "0 6px 25px rgba(7,31,74,0.08)",
+        boxShadow:
+          "0 6px 25px rgba(7,31,74,0.08)",
       }}
     >
       <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+          }}
+        >
           <Box
             sx={{
               width: 56,
@@ -462,7 +582,6 @@ function StatCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-
               "& svg": {
                 fontSize: 30,
               },
@@ -472,7 +591,9 @@ function StatCard({
           </Box>
 
           <Box>
-            <Typography sx={{ color: "#39415A" }}>{title}</Typography>
+            <Typography sx={{ color: "#39415A" }}>
+              {title}
+            </Typography>
 
             <Typography
               variant="h4"
@@ -484,7 +605,10 @@ function StatCard({
               {value}
             </Typography>
 
-            <Typography variant="body2" sx={{ color: "#667085" }}>
+            <Typography
+              variant="body2"
+              sx={{ color: "#667085" }}
+            >
               {subtitle}
             </Typography>
           </Box>
