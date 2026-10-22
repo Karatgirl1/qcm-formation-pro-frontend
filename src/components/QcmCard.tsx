@@ -188,7 +188,9 @@ export default function QcmCard({
                 const value = event.target.value;
 
                 void moveQcm(
-                  value === "" ? null : Number(value)
+                value == null || Number(value) === 0
+  ? null
+  : Number(value)
                 );
               }}
               startAdornment={
