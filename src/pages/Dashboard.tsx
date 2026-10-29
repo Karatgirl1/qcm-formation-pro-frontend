@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -137,7 +136,7 @@ export default function Dashboard() {
 
   const visibleQcms = qcms.filter((qcm) => {
     if (selectedFolderId === "all") {
-      return true;
+      return qcm.folder_id == null;
     }
 
     if (selectedFolderId === null) {
@@ -149,7 +148,7 @@ export default function Dashboard() {
 
   const sectionTitle =
     selectedFolderId === "all"
-      ? "Tous mes QCM"
+      ? "QCM non classés"
       : selectedFolderId === null
         ? "QCM non classés"
         : selectedFolder?.name ?? "Mes QCM";
